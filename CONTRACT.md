@@ -14,7 +14,7 @@ Preview: `npm run dev` serves a 2D pan and zoom map over the fixture atlas with 
 - atlas blueprint: `CityBlueprint` per ../atlas/CONTRACT.md (authority: ../atlas/schema/blueprint.ts). The consumed subset is mirrored at [src/types/atlas.ts](src/types/atlas.ts); the fixture city (`fixtures/atlas.fixture.ts`) stands in when atlas is absent.
 - params: [schemas/params.schema.json](schemas/params.schema.json). Seed, per-kind toggles (an ancient city runs with tunnels only, or nothing), link limits, day span. For wires the limits read as the street crossing: lengths are the facade-to-facade span, `minBase`/`maxBase` are the anchor height band, `density` is the share of candidate anchor stations along a street that get one.
 
-Street classes come from atlas and the list is additive: `alley` carries the most wire, then `street`, then `road`; `highway` none. A class this box does not know falls back to its carriageway width, and a class with no car traffic (`alley`) gets no lanes.
+Street classes come from atlas and the list is additive: `alley` carries the most wire, then `street`, then `road`; `highway` none. A class this box does not know falls back to its carriageway width. An edge with no carriageway is pedestrian ground, all of it sidewalk, and carries no car lanes: that is how an `alley` arrives. An edge is valid when its carriageway plus its two sidewalks are positive; the carriageway alone may be 0.
 
 Conventions (project wide): units meters, ground plane XZ, +Y up, 2D points [x, z], 3D points [x, y, z], polygons CCW.
 
@@ -28,7 +28,7 @@ One document: [schemas/output.schema.json](schemas/output.schema.json)
 
 ## Errors
 Closed set, thrown as `ConnectionsError { code, message, path }`:
-- `E_ATLAS_INVALID`: blueprint fails schema or topology checks (dangling ids, footprint not counter-clockwise, degenerate geometry).
+- `E_ATLAS_INVALID`: blueprint fails schema or topology checks (dangling ids, footprint not counter-clockwise, degenerate geometry such as a street edge with neither carriageway nor sidewalk).
 - `E_PARAMS_INVALID`: params fail schema or range checks.
 
 Anything the toggles request that the atlas cannot feed (subway on, no stations) yields that layer empty, never an error.

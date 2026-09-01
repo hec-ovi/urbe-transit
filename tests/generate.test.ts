@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { generate, ConnectionsError } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
+import { wireDensityPerClass } from './helpers'
 
 const atlas = buildFixtureAtlas()
+
+/** The fixture alley in the shape atlas 0.3 emits: no carriageway, the whole ground is sidewalk. */
+function atlasWithPedestrianAlley() {
+  const a = buildFixtureAtlas()
+  const alley = a.streets.edges.find((e) => e.id === 'e18')!
+  alley.width = 0
+  alley.sidewalk = { left: 2.5, right: 2.5 }
+  return a
+}
 
 describe('generate: determinism', () => {
   it('same seed and atlas give a byte-identical document', () => {
@@ -18,12 +28,44 @@ describe('generate: determinism', () => {
   })
 })
 
+describe('generate: street classes', () => {
+  it('takes a pedestrian alley with no carriageway: no lanes, still the top wire class', () => {
+    const pedestrian = atlasWithPedestrianAlley()
+    const out = generate(pedestrian, { seed: 'alpha' })
+    expect(out.networks.road.lanes.some((l) => l.edgeId === 'e18')).toBe(false)
+    const density = wireDensityPerClass(pedestrian, out.links.filter((l) => l.kind === 'wire'))
+    expect(density.alley).toBeGreaterThan(density.street)
+    // Its ground is all sidewalk: one walkable band per side, both off the centerline.
+    const bands = out.networks.walk.edges.filter((e) => e.kind === 'sidewalk' && e.width === 2.5)
+    expect(bands.length).toBeGreaterThan(0)
+  })
+
+  it('a class it does not know drives and wires by its carriageway width', () => {
+    const exotic = buildFixtureAtlas()
+    const narrow = exotic.streets.edges.find((e) => e.id === 'e7')!
+    narrow.class = 'boulevard' as never
+    const out = generate(exotic, { seed: 'alpha' })
+    expect(out.networks.road.lanes.some((l) => l.edgeId === 'e7')).toBe(true)
+    expect(out.links.some((l) => l.kind === 'wire')).toBe(true)
+  })
+})
+
 describe('generate: closed error set', () => {
   it('rejects an invalid atlas with E_ATLAS_INVALID', () => {
     const broken = buildFixtureAtlas()
     broken.streets.edges[0].from = 'missing'
     expect(() => generate(broken, { seed: 's' })).toThrowError(
       expect.objectContaining({ name: 'ConnectionsError', code: 'E_ATLAS_INVALID' }),
+    )
+  })
+
+  it('rejects a street edge with no ground at all', () => {
+    const groundless = buildFixtureAtlas()
+    const edge = groundless.streets.edges.find((e) => e.id === 'e18')!
+    edge.width = 0
+    edge.sidewalk = { left: 0, right: 0 }
+    expect(() => generate(groundless, { seed: 's' })).toThrowError(
+      expect.objectContaining({ code: 'E_ATLAS_INVALID', path: 'atlas.streets.edges' }),
     )
   })
 

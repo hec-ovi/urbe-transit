@@ -1,5 +1,5 @@
 /**
- * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.2).
+ * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.3).
  * Units: meters. Ground plane XZ, +Y up; 2D points are [x, z]; heights along +Y.
  * Polygons: CCW rings, first point not repeated.
  */
@@ -8,7 +8,7 @@ export type Vec2 = [x: number, z: number]
 export type Polygon = Vec2[]
 export type Polyline = Vec2[]
 
-/** Additive list: `alley` arrives with atlas pedestrian alleys, and consumers fall back on width. */
+/** Additive list; a class this box does not know falls back on carriageway width. */
 export type StreetClass = 'alley' | 'street' | 'road' | 'highway'
 export type DistrictKind = 'downtown' | 'commercial' | 'residential' | 'industrial' | 'mixed'
 export type WealthTier = 'poor' | 'mid' | 'rich' | 'high_rich'
@@ -65,7 +65,7 @@ export interface StreetEdge {
   to: string
   /** Centerline from `from` to `to`; curves are polylines. */
   path: Polyline
-  /** Carriageway width, sidewalks excluded. */
+  /** Carriageway width, sidewalks excluded; 0 on a pedestrian class such as `alley`. */
   width: number
   /** Per side, 0 = none. Left/right relative to path direction. */
   sidewalk: { left: number; right: number }

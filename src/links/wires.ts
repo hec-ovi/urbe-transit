@@ -23,10 +23,7 @@ const LONG_BLOCK = 160
 /** Roof clearance above an anchor. */
 const HEAD_ROOM = 1
 
-/**
- * Weight per atlas street class. The class list is additive (`alley` arrives with pedestrian
- * alleys), so an unknown class falls back to its carriageway width.
- */
+/** Weight per atlas street class. The list is additive, so an unknown class falls back on width. */
 const CLASS_WEIGHT: Record<string, number> = {
   alley: 1,
   street: 0.7,

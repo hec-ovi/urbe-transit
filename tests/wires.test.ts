@@ -1,36 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { generate } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
-import { straddledStreet, streetLengthPerClass } from './helpers'
+import { linkGround, straddledStreet, wireDensityPerClass } from './helpers'
 
 const atlas = buildFixtureAtlas()
 const out = generate(atlas, { seed: 'alpha' })
 const wires = out.links.filter((l) => l.kind === 'wire')
 const aperture = (id: string) => out.apertures.find((a) => a.id === id)!
-const ground = (l: (typeof wires)[number]) => ({
-  a: [l.path[0][0], l.path[0][2]] as [number, number],
-  b: [l.path[l.path.length - 1][0], l.path[l.path.length - 1][2]] as [number, number],
-})
-
-/** Wires per 100 m of street centerline, per class. */
-function densityPerClass(): Record<string, number> {
-  const lengths = streetLengthPerClass(atlas)
-  const counts: Record<string, number> = {}
-  for (const w of wires) {
-    const street = straddledStreet(atlas, ground(w).a, ground(w).b)!
-    counts[street.class] = (counts[street.class] ?? 0) + 1
-  }
-  const out: Record<string, number> = {}
-  for (const cls of Object.keys(lengths)) out[cls] = ((counts[cls] ?? 0) / lengths[cls]) * 100
-  return out
-}
 
 describe('wires: overhead across the street', () => {
   it('every wire spans facade to facade over a street, never over a highway', () => {
     expect(wires.length).toBeGreaterThan(0)
     for (const w of wires) {
-      const { a, b } = ground(w)
-      const street = straddledStreet(atlas, a, b)
+      const street = straddledStreet(atlas, ...linkGround(w))
       expect(street, `${w.id} spans no street`).not.toBeNull()
       expect(street!.class).not.toBe('highway')
       expect(aperture(w.a.apertureId).kind).toBe('wire-anchor')
@@ -40,12 +22,12 @@ describe('wires: overhead across the street', () => {
   })
 
   it('narrow alleys and streets carry the wires, wide streets few or none', () => {
-    const density = densityPerClass()
+    const density = wireDensityPerClass(atlas, wires)
     expect(density.highway).toBe(0)
     expect(density.alley).toBeGreaterThan(3 * density.street)
     expect(density.street).toBeGreaterThan(density.road)
     const wide = wires.filter((w) => {
-      const cls = straddledStreet(atlas, ground(w).a, ground(w).b)!.class
+      const cls = straddledStreet(atlas, ...linkGround(w))!.class
       return cls === 'road' || cls === 'highway'
     })
     expect(wide.length).toBeLessThanOrEqual(wires.length / 4)
@@ -59,7 +41,7 @@ describe('wires: overhead across the street', () => {
         expect(ap.base + ap.height).toBeLessThanOrEqual(8)
       }
       const anchorY = w.path[0][1]
-      const { a, b } = ground(w)
+      const [a, b] = linkGround(w)
       const span = Math.hypot(a[0] - b[0], a[1] - b[1])
       for (const p of w.path) {
         expect(p[1]).toBeLessThanOrEqual(anchorY + 1e-9)

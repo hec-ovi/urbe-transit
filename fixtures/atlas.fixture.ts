@@ -1,8 +1,9 @@
 /**
- * Deterministic fixture in the atlas v0.2 blueprint shape (consumed subset).
- * A 4x3 street grid with a highway row, a road row, curved and straight streets, a pedestrian
- * alley with buildings on both sides, three districts, facing building pairs for every link kind,
- * and all transit modes.
+ * Deterministic fixture in the atlas blueprint shape (consumed subset).
+ * A 4x3 street grid with a highway row, a road row, curved and straight streets, an alley with
+ * buildings on both sides, three districts, facing building pairs for every link kind, and all
+ * transit modes. The alley keeps a carriageway, which the 0.2 blueprints have and later ones
+ * drop, so both alley shapes stay covered; tests build the carriageway-less one from it.
  */
 import type { AtlasBlueprint, Crossing, Parcel, StreetEdge, StreetNode, Vec2 as V2 } from '../src/types/atlas'
 

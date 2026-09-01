@@ -1,4 +1,5 @@
 import type { AtlasBlueprint, StreetEdge } from '../src/types/atlas'
+import type { Link } from '../src/types/output'
 
 /** Independent face-plane math: unsigned distance of a world point from face `face` of a building. */
 export function facePlaneDistance(atlas: AtlasBlueprint, buildingId: string, face: number, p: [number, number, number]): number {
@@ -42,6 +43,25 @@ export function streetLengthPerClass(atlas: AtlasBlueprint): Record<string, numb
     for (let i = 1; i < e.path.length; i++) len += Math.hypot(e.path[i][0] - e.path[i - 1][0], e.path[i][1] - e.path[i - 1][1])
     out[e.class] = (out[e.class] ?? 0) + len
   }
+  return out
+}
+
+/** Ground endpoints of a link: where it leaves one facade and where it lands on the other. */
+export const linkGround = (l: Link): [P2, P2] => {
+  const end = l.path[l.path.length - 1]
+  return [[l.path[0][0], l.path[0][2]], [end[0], end[2]]]
+}
+
+/** Wires per 100 m of street centerline, per class; a class with no wire reads 0. */
+export function wireDensityPerClass(atlas: AtlasBlueprint, wires: readonly Link[]): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const w of wires) {
+    const street = straddledStreet(atlas, ...linkGround(w))
+    if (street) counts[street.class] = (counts[street.class] ?? 0) + 1
+  }
+  const lengths = streetLengthPerClass(atlas)
+  const out: Record<string, number> = {}
+  for (const cls of Object.keys(lengths)) out[cls] = ((counts[cls] ?? 0) / lengths[cls]) * 100
   return out
 }
 

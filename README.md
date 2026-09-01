@@ -13,7 +13,7 @@ npm run dev       # 2D preview over the fixture city, every layer toggleable
 npm run build     # typecheck and bundle
 ```
 
-The preview clock drives the traffic signals and the vehicles, so a route's position at any time is visible on the map. A bundled fixture city stands in when atlas is absent, and the preview loads a real blueprint from `ATLAS_BLUEPRINT` when one is pointed at it.
+The preview clock drives the traffic signals and the vehicles, so a route's position at any time is visible on the map. A bundled fixture city stands in when atlas is absent, and the preview loads a real blueprint from `ATLAS_BLUEPRINT` when one is pointed at it (default: `../atlas/samples/city-urbe.json`). The pipeline test reads every sample in `ATLAS_SAMPLES` (default: `../atlas/samples`) and skips itself when that directory is absent.
 
 ## In
 

@@ -36,9 +36,10 @@ export class RoadBuilder {
 
   private buildEdgeLanes(edgeId: string): void {
     const e = this.streets.edges.get(edgeId)!
-    // A class this box does not know yet drives like a street; a class with no lanes carries no cars.
+    // A class this box does not know yet drives like a street; a class with no lanes, or with no
+    // carriageway to put them on, carries no cars.
     const perDir = LANES_PER_DIR[e.class] ?? 1
-    if (perDir < 1) return
+    if (perDir < 1 || e.width <= 0) return
     const laneWidth = e.width / (2 * perDir)
     this.laneCount.set(edgeId, perDir)
     for (const dir of ['f', 'b'] as const) {

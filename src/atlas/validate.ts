@@ -23,7 +23,13 @@ export function validateAtlas(atlas: AtlasBlueprint): void {
     edgeIds.add(e.id)
     if (!nodeIds.has(e.from) || !nodeIds.has(e.to)) fail(`edge ${e.id} references a missing node`, 'atlas.streets.edges')
     if (!Array.isArray(e.path) || e.path.length < 2) fail(`edge ${e.id} path needs 2+ points`, 'atlas.streets.edges')
-    if (!(e.width > 0)) fail(`edge ${e.id} width must be positive`, 'atlas.streets.edges')
+    // Carriageway may be zero: a pedestrian class (alley) is all sidewalk. What an edge must
+    // have is ground to stand on, carriageway plus sidewalks.
+    if (!(e.width >= 0)) fail(`edge ${e.id} carriageway width must not be negative`, 'atlas.streets.edges')
+    const left = e.sidewalk?.left
+    const right = e.sidewalk?.right
+    if (!(left >= 0) || !(right >= 0)) fail(`edge ${e.id} sidewalk widths must not be negative`, 'atlas.streets.edges')
+    if (!(e.width + left + right > 0)) fail(`edge ${e.id} has no ground: carriageway and sidewalks are all zero`, 'atlas.streets.edges')
   }
   for (const c of atlas.streets?.crossings ?? []) {
     if (!nodeIds.has(c.nodeId)) fail(`crossing references missing node ${c.nodeId}`, 'atlas.streets.crossings')
