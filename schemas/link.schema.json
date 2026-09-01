@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/link",
+  "title": "Link",
+  "description": "One inter-building connection. Geometry is a centerline polyline with a constant cross-section; both ends terminate exactly on the target face planes (the apertures carry the exact cut polygons).",
+  "type": "object",
+  "required": ["id", "kind", "a", "b", "path", "crossSection", "walkable", "length"],
+  "properties": {
+    "id": { "type": "string" },
+    "kind": { "enum": ["bridge", "ac-tube", "wire", "tunnel"] },
+    "a": { "$ref": "#/$defs/endpoint" },
+    "b": { "$ref": "#/$defs/endpoint" },
+    "path": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "array",
+        "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+        "minItems": 3,
+        "maxItems": 3
+      },
+      "description": "world-space centerline [x,y,z]; straight for bridges and tubes, sampled catenary for wires, routed under streets for tunnels"
+    },
+    "crossSection": {
+      "type": "object",
+      "required": ["shape", "width", "height"],
+      "properties": {
+        "shape": { "enum": ["rect", "circle"] },
+        "width": { "type": "number", "description": "meters; circle: diameter" },
+        "height": { "type": "number" }
+      }
+    },
+    "walkable": {
+      "type": "object",
+      "required": ["over", "inside"],
+      "properties": {
+        "over": { "type": "boolean", "description": "player and NPCs can walk on top" },
+        "inside": { "type": "boolean", "description": "player and NPCs can walk through" }
+      }
+    },
+    "length": { "type": "number", "description": "meters along the centerline" }
+  },
+  "$defs": {
+    "endpoint": {
+      "type": "object",
+      "required": ["buildingId", "floor", "face", "apertureId"],
+      "properties": {
+        "buildingId": { "type": "string" },
+        "floor": { "type": "integer" },
+        "face": { "type": "integer" },
+        "apertureId": { "type": "string" }
+      }
+    }
+  }
+}

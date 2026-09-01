@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/params",
+  "title": "ConnectionsParams",
+  "description": "Generation parameters. Everything optional except seed; defaults produce a full modern city. Toggling a kind off removes that layer entirely (an ancient city can run with only underground tunnels, or nothing).",
+  "type": "object",
+  "required": ["seed"],
+  "properties": {
+    "seed": { "type": "string" },
+    "toggles": {
+      "type": "object",
+      "properties": {
+        "bridges": { "type": "boolean", "default": true },
+        "acTubes": { "type": "boolean", "default": true },
+        "wires": { "type": "boolean", "default": true },
+        "tunnels": { "type": "boolean", "default": true },
+        "airPaths": { "type": "boolean", "default": true },
+        "bus": { "type": "boolean", "default": true },
+        "subway": { "type": "boolean", "default": true },
+        "train": { "type": "boolean", "default": true }
+      }
+    },
+    "links": {
+      "type": "object",
+      "description": "selection limits per link kind",
+      "properties": {
+        "bridge": { "$ref": "#/$defs/linkLimits" },
+        "acTube": { "$ref": "#/$defs/linkLimits" },
+        "wire": { "$ref": "#/$defs/linkLimits" },
+        "tunnel": { "$ref": "#/$defs/linkLimits" }
+      }
+    },
+    "timetable": {
+      "type": "object",
+      "properties": {
+        "dayStart": { "type": "number", "description": "seconds from midnight, first departures; default 18000 (05:00)" },
+        "dayEnd": { "type": "number", "description": "seconds from midnight, last departures; default 90000 (01:00 next day)" }
+      }
+    }
+  },
+  "$defs": {
+    "linkLimits": {
+      "type": "object",
+      "properties": {
+        "minLength": { "type": "number" },
+        "maxLength": { "type": "number" },
+        "minFloor": { "type": "integer", "description": "lowest floor a link of this kind may attach to" },
+        "maxPerBuilding": { "type": "integer" },
+        "density": { "type": "number", "minimum": 0, "maximum": 1, "description": "fraction of candidate pairs that get a link; 0 disables like the toggle" }
+      }
+    }
+  }
+}

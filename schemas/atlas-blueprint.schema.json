@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/atlas-blueprint",
+  "title": "AtlasBlueprint (consumed subset)",
+  "description": "The slice of the atlas world blueprint that connections consumes. Units: meters. Axes: x east, y north, z up (atlas is 2D; z comes from floor data). Footprint polygons are counter-clockwise.",
+  "type": "object",
+  "required": ["meta", "districts", "streets", "parcels", "transit"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["seed", "bounds"],
+      "properties": {
+        "seed": { "type": "string" },
+        "bounds": {
+          "type": "object",
+          "required": ["minX", "minY", "maxX", "maxY"],
+          "properties": {
+            "minX": { "type": "number" },
+            "minY": { "type": "number" },
+            "maxX": { "type": "number" },
+            "maxY": { "type": "number" }
+          }
+        }
+      }
+    },
+    "districts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "kind", "tier", "polygon"],
+        "properties": {
+          "id": { "type": "string" },
+          "kind": { "enum": ["downtown", "residential", "industrial", "commercial", "port", "old-town"] },
+          "tier": { "enum": ["poor", "mid", "rich", "lux"] },
+          "polygon": { "$ref": "#/$defs/polygon2" }
+        }
+      }
+    },
+    "streets": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "x", "y"],
+            "properties": {
+              "id": { "type": "string" },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "signalized": { "type": "boolean", "description": "true when the intersection carries a traffic light" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "from", "to", "class", "roadWidth", "sidewalkLeft", "sidewalkRight"],
+            "properties": {
+              "id": { "type": "string" },
+              "from": { "type": "string", "description": "street node id" },
+              "to": { "type": "string", "description": "street node id" },
+              "class": { "enum": ["highway", "avenue", "street", "alley"] },
+              "roadWidth": { "type": "number", "description": "carriageway width in meters, sidewalks excluded" },
+              "sidewalkLeft": { "type": "number", "description": "meters; 0 = no sidewalk on the left of from->to" },
+              "sidewalkRight": { "type": "number" },
+              "oneWay": { "type": "boolean", "description": "when true, traffic flows from->to only" }
+            }
+          }
+        }
+      }
+    },
+    "parcels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "districtId", "type", "tier", "footprint", "floorCount", "floorHeight"],
+        "properties": {
+          "id": { "type": "string" },
+          "districtId": { "type": "string" },
+          "type": { "enum": ["residential", "hotel", "office", "corpo", "hospital", "police", "factory", "commerce"] },
+          "tier": { "enum": ["poor", "mid", "rich", "lux"] },
+          "footprint": { "$ref": "#/$defs/polygon2", "description": "building envelope footprint, counter-clockwise; face i is the vertical quad over segment i -> i+1" },
+          "floorCount": { "type": "integer", "minimum": 1 },
+          "floorHeight": { "type": "number", "description": "meters per floor; floor f spans z in [f*floorHeight, (f+1)*floorHeight)" },
+          "basement": { "type": "boolean", "description": "true when floor -1 exists (underground tunnel endpoint candidate)" },
+          "frontEdgeId": { "type": "string", "description": "street edge the main entrance faces" }
+        }
+      }
+    },
+    "transit": {
+      "type": "object",
+      "required": ["stops", "stations", "lines"],
+      "properties": {
+        "stops": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "edgeId", "t"],
+            "properties": {
+              "id": { "type": "string" },
+              "edgeId": { "type": "string", "description": "street edge the bus stop sits on" },
+              "t": { "type": "number", "minimum": 0, "maximum": 1, "description": "normalized position along the edge from->to" },
+              "side": { "enum": ["left", "right"], "description": "side of from->to; default right" }
+            }
+          }
+        },
+        "stations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "x", "y"],
+            "properties": {
+              "id": { "type": "string" },
+              "kind": { "enum": ["subway", "train"] },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "districtId": { "type": "string" }
+            }
+          }
+        },
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "stopIds"],
+            "properties": {
+              "id": { "type": "string" },
+              "kind": { "enum": ["bus", "subway", "train"] },
+              "stopIds": {
+                "type": "array",
+                "minItems": 2,
+                "items": { "type": "string" },
+                "description": "ordered stop ids (bus) or station ids (subway, train)"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "polygon2": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "array",
+        "prefixItems": [{ "type": "number" }, { "type": "number" }],
+        "minItems": 2,
+        "maxItems": 2
+      }
+    }
+  }
+}

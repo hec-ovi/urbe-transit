@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/output",
+  "title": "ConnectionsOutput",
+  "description": "The full export: inter-building links with their apertures, plain link references for quests, all movement networks, and a manifest of toggleable preview layers. Deterministic: same atlas blueprint and params give an identical document.",
+  "type": "object",
+  "required": ["meta", "links", "apertures", "linkRefs", "networks", "layers"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["seed", "atlasSeed", "version"],
+      "properties": {
+        "seed": { "type": "string" },
+        "atlasSeed": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "links": { "type": "array", "items": { "$ref": "urbe/connections/link" } },
+    "apertures": { "type": "array", "items": { "$ref": "urbe/connections/aperture" } },
+    "linkRefs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["linkId", "kind", "buildingA", "buildingB"],
+        "properties": {
+          "linkId": { "type": "string" },
+          "kind": { "enum": ["bridge", "ac-tube", "wire", "tunnel"] },
+          "buildingA": { "type": "string" },
+          "buildingB": { "type": "string" }
+        }
+      },
+      "description": "building id to building id with kind, for quests and queries"
+    },
+    "networks": { "$ref": "urbe/connections/networks" },
+    "layers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name"],
+        "properties": {
+          "id": { "enum": ["links.bridges", "links.acTubes", "links.wires", "links.tunnels", "walk", "road", "signals", "transit.bus", "transit.subway", "transit.train", "air"] },
+          "name": { "type": "string" }
+        }
+      },
+      "description": "layers present in this export; each toggles independently in any preview"
+    }
+  }
+}

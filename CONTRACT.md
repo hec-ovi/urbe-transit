@@ -1,22 +1,41 @@
 # CONTRACT: connections
 
-Purpose: deterministically computes inter-building links (bridges, AC tubes, wires, tunnels), building apertures for them, and all movement networks (NPC walk paths, car lanes, bus, train, subway, air paths).
+Purpose: deterministically computes inter-building links (bridges, AC tubes, wires, tunnels) with exact building apertures, and every movement network (sidewalk walk graph with signal-synced crossings, car lanes, bus, subway and train routes with timetables, air corridors) from an atlas blueprint.
 
-Status: draft, schemas pending research.
+Status: stable. Schemas below are the coupling surface.
 
-## In (must cover)
-- atlas world blueprint
-- seed
-- feature toggles per link kind (air tunnels, underground tunnels, wires, bridges)
+## Entry point
+`generate(atlas, params) -> output` (library, `src/index.ts`; pure, synchronous, no IO).
+Same inputs give a byte-identical output document. No LLM, no randomness outside the seed.
 
-## Out (must cover)
-- link layer: each link with endpoints (building id, floor, face), geometry, kind
-- aperture list per building: exact position, dimensions, kind (consumed by exterior)
-- path networks: sidewalks with crossings and light sync, car lanes with speeds, transit routes with timetables, air paths
-- link references: building id to building id with kind
+Preview: `npm run dev` serves a 2D pan and zoom map over the fixture atlas with every layer toggleable. `npm test` runs the contract tests.
+
+## In
+- atlas blueprint: [schemas/atlas-blueprint.schema.json](schemas/atlas-blueprint.schema.json). The subset of the atlas output this box consumes. Fixture at `fixtures/atlas.fixture.json` stands in until atlas ships.
+- params: [schemas/params.schema.json](schemas/params.schema.json). Seed, per-kind toggles (an ancient city runs with tunnels only, or nothing), link limits, day span.
+
+## Out
+One document: [schemas/output.schema.json](schemas/output.schema.json)
+- `links`: [schemas/link.schema.json](schemas/link.schema.json). Each link: kind, both endpoints (building, floor, face, aperture), centerline path, cross section, walkable flags, length.
+- `apertures`: [schemas/aperture.schema.json](schemas/aperture.schema.json). Per building opening: floor, face index, face-local center (u, v), width, height, and the exact cut polygon on the face plane (closed-form miter cut, so a diagonal tube closes with zero gap). Exterior must honor these.
+- `linkRefs`: building id to building id with kind, for quests.
+- `networks`: [schemas/networks.schema.json](schemas/networks.schema.json). Walk graph (sidewalks, corners, crossings with signal references), road lane graph (per-lane speed, direction, lane-change adjacency, turn connections), signal controllers (cycle, offset, phases with per-link state strings; walk phases share the string), transit routes (shape, stops with shape distance, trip template, headway service periods; vehicle position at any time t is closed-form), air corridors (fixed altitude, one direction per layer).
+- `layers`: manifest of the toggleable preview layers present.
 
 ## Errors
-Closed set, to be defined.
+Closed set, thrown as `ConnectionsError { code, message, path }`:
+- `E_ATLAS_INVALID`: blueprint fails schema or topology checks (dangling ids, footprint not counter-clockwise, degenerate geometry).
+- `E_PARAMS_INVALID`: params fail schema or range checks.
+
+Anything the toggles request that the atlas cannot feed (subway on, no stations) yields that layer empty, never an error.
+
+## Invariants
+- Determinism: identical atlas and params, identical output.
+- Face convention: face i of a building is the vertical quad over footprint segment i to i+1, footprint counter-clockwise, outward normal to the right of the segment. Floor f spans z in [f*floorHeight, (f+1)*floorHeight); floor -1 is the basement.
+- Every aperture center lies on its face within bounds and inside its floor's z span; apertures on one building never overlap; every cut polygon vertex lies exactly in the face plane.
+- Link paths terminate exactly on the two face planes; `linkRefs` matches `links` one to one.
+- Signal cycle equals the sum of its phase durations; every crossing and turn connection references an existing signal and a link index inside its state string.
+- Trip template offsets are non-decreasing with depart >= arrive; service periods do not overlap and stay inside the day span.
 
 ## Depends on
-- ../atlas/CONTRACT.md
+- ../atlas/CONTRACT.md (blueprint shape pending there; this box's atlas-blueprint schema is the consumed subset and the sync point)

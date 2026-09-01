@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/aperture",
+  "title": "Aperture",
+  "description": "One opening a link demands on a building face. The exterior layer must keep this face region clear and carve exactly the cut polygon. Face i of a building is the vertical quad over footprint segment i -> i+1 (footprint counter-clockwise, outward normal to the right of the directed segment). Face-local frame: origin at footprint vertex i at z=0, U along the segment (meters), V straight up (meters).",
+  "type": "object",
+  "required": ["id", "buildingId", "floor", "face", "kind", "u", "v", "width", "height", "shape", "cut", "linkId"],
+  "properties": {
+    "id": { "type": "string" },
+    "buildingId": { "type": "string", "description": "atlas parcel id" },
+    "floor": { "type": "integer", "description": "floor the opening belongs to; -1 = basement (tunnels)" },
+    "face": { "type": "integer", "minimum": 0, "description": "footprint segment index" },
+    "kind": { "enum": ["bridge", "ac-tube", "wire-anchor", "tunnel"] },
+    "u": { "type": "number", "description": "face-local U of the opening center, meters along the segment from vertex i" },
+    "v": { "type": "number", "description": "face-local V of the opening center, meters above z=0 (world ground)" },
+    "width": { "type": "number", "description": "opening width along U, meters (bounding size for slanted cuts)" },
+    "height": { "type": "number", "description": "opening height along V, meters" },
+    "shape": { "enum": ["rect", "circle"] },
+    "cut": {
+      "type": "object",
+      "required": ["polygon", "axisDir"],
+      "description": "Exact closure geometry. polygon is the intersection of the link solid with the face plane, so a diagonal link meeting the face closes with no gap.",
+      "properties": {
+        "polygon": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "description": "world-space [x,y,z] loop, counter-clockwise seen from outside; every vertex lies exactly on the face plane"
+        },
+        "axisDir": {
+          "type": "array",
+          "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+          "minItems": 3,
+          "maxItems": 3,
+          "description": "unit direction of the link axis at this end, pointing away from the building"
+        }
+      }
+    },
+    "linkId": { "type": "string" }
+  }
+}

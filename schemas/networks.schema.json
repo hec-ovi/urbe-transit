@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/networks",
+  "title": "Networks",
+  "description": "All movement networks. One polyline-lane model, instantiated for sidewalks (walk), roads (lanes) and air corridors; transit rides on its own shapes with frequency timetables. Signal state at time t is closed-form: phase containing (t + offset) mod cycle; state strings hold one char per controlled link (G=go, r=stop, y=clearing).",
+  "type": "object",
+  "required": ["walk", "road", "signals", "transit", "air"],
+  "properties": {
+    "walk": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "x", "y", "kind"],
+            "properties": {
+              "id": { "type": "string" },
+              "x": { "type": "number" },
+              "y": { "type": "number" },
+              "kind": { "enum": ["sidewalk", "corner", "crossing-end", "stop", "station", "entry", "link-portal"] },
+              "ref": { "type": "string", "description": "stop/station/parcel/link id this node serves, by kind" }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "from", "to", "kind", "width", "path"],
+            "properties": {
+              "id": { "type": "string" },
+              "from": { "type": "string" },
+              "to": { "type": "string" },
+              "kind": { "enum": ["sidewalk", "crossing", "access", "link"] },
+              "width": { "type": "number" },
+              "path": { "$ref": "#/$defs/path2" },
+              "signal": { "$ref": "#/$defs/signalRef", "description": "crossings only: walk is legal while state char is G" },
+              "linkId": { "type": "string", "description": "kind link only: the inter-building link walked over or through" }
+            }
+          }
+        }
+      }
+    },
+    "road": {
+      "type": "object",
+      "required": ["lanes"],
+      "properties": {
+        "lanes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "edgeId", "index", "speed", "width", "path", "next"],
+            "properties": {
+              "id": { "type": "string" },
+              "edgeId": { "type": "string", "description": "atlas street edge" },
+              "index": { "type": "integer", "description": "0 = rightmost in driving direction" },
+              "speed": { "type": "number", "description": "m/s limit" },
+              "width": { "type": "number" },
+              "path": { "$ref": "#/$defs/path2", "description": "lane centerline in driving direction" },
+              "allow": { "type": "array", "items": { "enum": ["car", "bus"] }, "description": "default all" },
+              "next": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["laneId", "turn", "via"],
+                  "properties": {
+                    "laneId": { "type": "string" },
+                    "turn": { "enum": ["s", "l", "r", "t"] },
+                    "via": { "$ref": "#/$defs/path2", "description": "curve through the intersection" },
+                    "signal": { "$ref": "#/$defs/signalRef" }
+                  }
+                }
+              },
+              "left": { "$ref": "#/$defs/adjacency" },
+              "right": { "$ref": "#/$defs/adjacency" }
+            }
+          }
+        }
+      }
+    },
+    "signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "nodeId", "cycle", "offset", "phases", "linkCount"],
+        "properties": {
+          "id": { "type": "string" },
+          "nodeId": { "type": "string", "description": "atlas street node" },
+          "cycle": { "type": "number", "description": "seconds, equals the sum of phase durations" },
+          "offset": { "type": "number", "description": "seconds; program start shift for green waves" },
+          "phases": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": ["duration", "state"],
+              "properties": {
+                "duration": { "type": "number" },
+                "state": { "type": "string", "description": "one char per link index: G go, y clearing, r stop" }
+              }
+            }
+          },
+          "linkCount": { "type": "integer", "description": "state string length; lane connections and crossings hold {signalId, linkIndex} into it" }
+        }
+      }
+    },
+    "transit": {
+      "type": "object",
+      "required": ["routes"],
+      "properties": {
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "kind", "lineId", "stops", "shape", "template", "service"],
+            "properties": {
+              "id": { "type": "string" },
+              "kind": { "enum": ["bus", "subway", "train"] },
+              "lineId": { "type": "string", "description": "atlas transit line id" },
+              "stops": {
+                "type": "array",
+                "minItems": 2,
+                "items": {
+                  "type": "object",
+                  "required": ["stopId", "x", "y", "z", "shapeDist"],
+                  "properties": {
+                    "stopId": { "type": "string" },
+                    "x": { "type": "number" },
+                    "y": { "type": "number" },
+                    "z": { "type": "number" },
+                    "shapeDist": { "type": "number", "description": "meters along shape at this stop" }
+                  }
+                }
+              },
+              "shape": { "$ref": "#/$defs/path3", "description": "route geometry; subway runs below ground (negative z)" },
+              "template": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["arrive", "depart"],
+                  "properties": {
+                    "arrive": { "type": "number", "description": "seconds from trip start" },
+                    "depart": { "type": "number", "description": "arrive + dwell" }
+                  }
+                },
+                "description": "one entry per stop; a vehicle's position at time t is interpolated between stops by shapeDist"
+              },
+              "service": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "required": ["start", "end", "headway", "phase"],
+                  "properties": {
+                    "start": { "type": "number", "description": "seconds from midnight" },
+                    "end": { "type": "number" },
+                    "headway": { "type": "number", "description": "seconds between departures" },
+                    "phase": { "type": "number", "description": "seconds; departures at start + phase + k*headway" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "air": {
+      "type": "object",
+      "required": ["corridors"],
+      "properties": {
+        "corridors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "altitude", "path", "width", "speed"],
+            "properties": {
+              "id": { "type": "string" },
+              "altitude": { "type": "number", "description": "meters; constant per corridor, one flight direction per altitude layer" },
+              "path": { "$ref": "#/$defs/path2" },
+              "width": { "type": "number" },
+              "speed": { "type": "number", "description": "m/s" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "path2": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "array",
+        "prefixItems": [{ "type": "number" }, { "type": "number" }],
+        "minItems": 2,
+        "maxItems": 2
+      }
+    },
+    "path3": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "array",
+        "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+        "minItems": 3,
+        "maxItems": 3
+      }
+    },
+    "signalRef": {
+      "type": "object",
+      "required": ["signalId", "linkIndex"],
+      "properties": {
+        "signalId": { "type": "string" },
+        "linkIndex": { "type": "integer" }
+      }
+    },
+    "adjacency": {
+      "type": "object",
+      "required": ["laneId", "change"],
+      "properties": {
+        "laneId": { "type": "string" },
+        "change": { "type": "boolean", "description": "lane change across this boundary allowed" }
+      }
+    }
+  }
+}
