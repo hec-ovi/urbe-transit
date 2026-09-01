@@ -2,6 +2,12 @@ import type { AtlasBlueprint } from '../../types/atlas'
 import type { ConnectionsOutput, LayerId } from '../../types/output'
 import { paintAir, paintAtlas, paintLinks, paintRoad, paintSignals, paintTransit, paintWalk, type Frame } from './painters'
 
+export interface ViewportState {
+  scale: number
+  centerX: number
+  centerZ: number
+}
+
 /** Pan and zoom 2D map of the atlas base with every connections layer over it. */
 export class MapView {
   readonly el: HTMLCanvasElement
@@ -12,17 +18,28 @@ export class MapView {
   private centerZ = 0
   private dragging = false
   private fitted = false
+  private initialCenterX = 0
+  private initialCenterZ = 0
+  private initialScale = 2
+  private onViewportChange?: (state: ViewportState) => void
 
   constructor(
     private readonly atlas: AtlasBlueprint,
     private readonly output: ConnectionsOutput,
+    onViewportChange?: (state: ViewportState) => void,
   ) {
+    this.onViewportChange = onViewportChange
     this.el = document.createElement('canvas')
     this.el.className = 'map-view'
+    this.el.setAttribute('tabindex', '0')
+    this.el.setAttribute('aria-label', '2D City Map Preview')
     const { min, max } = atlas.meta.bounds
     this.centerX = (min[0] + max[0]) / 2
     this.centerZ = (min[1] + max[1]) / 2
+    this.initialCenterX = this.centerX
+    this.initialCenterZ = this.centerZ
     this.bindPointer()
+    this.bindKeyboard()
     this.syncVisibleAttr()
   }
 
@@ -46,15 +63,31 @@ export class MapView {
       const spanX = Math.max(1, max[0] - min[0])
       const spanZ = Math.max(1, max[1] - min[1])
       this.scale = Math.min(40, Math.max(0.05, 0.92 * Math.min(width / spanX, height / spanZ)))
+      this.initialScale = this.scale
     }
     this.render()
+    this.emitViewport()
+  }
+
+  zoom(factor: number): void {
+    this.scale = Math.min(40, Math.max(0.05, this.scale * factor))
+    this.render()
+    this.emitViewport()
+  }
+
+  resetView(): void {
+    this.centerX = this.initialCenterX
+    this.centerZ = this.initialCenterZ
+    this.scale = this.initialScale
+    this.render()
+    this.emitViewport()
   }
 
   render(): void {
     const ctx = this.el.getContext('2d')
     if (!ctx) return
     const { width, height } = this.el
-    ctx.fillStyle = '#14161a'
+    ctx.fillStyle = '#0d1015'
     ctx.fillRect(0, 0, width, height)
     const f: Frame = {
       ctx,
@@ -84,25 +117,69 @@ export class MapView {
     this.el.dataset.visibleLayers = [...this.visible].sort().join(',')
   }
 
+  private emitViewport(): void {
+    if (this.onViewportChange) {
+      this.onViewportChange({
+        scale: this.scale,
+        centerX: this.centerX,
+        centerZ: this.centerZ,
+      })
+    }
+  }
+
   private bindPointer(): void {
-    this.el.addEventListener('wheel', (e) => {
-      e.preventDefault()
-      const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
-      this.scale = Math.min(40, Math.max(0.05, this.scale * factor))
-      this.render()
-    })
+    this.el.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault()
+        const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
+        this.scale = Math.min(40, Math.max(0.05, this.scale * factor))
+        this.render()
+        this.emitViewport()
+      },
+      { passive: false },
+    )
+
     this.el.addEventListener('pointerdown', (e) => {
       this.dragging = true
+      this.el.classList.add('is-dragging')
       this.el.setPointerCapture(e.pointerId)
     })
-    this.el.addEventListener('pointerup', () => {
+
+    this.el.addEventListener('pointerup', (e) => {
       this.dragging = false
+      this.el.classList.remove('is-dragging')
+      if (this.el.hasPointerCapture(e.pointerId)) {
+        this.el.releasePointerCapture(e.pointerId)
+      }
     })
+
+    this.el.addEventListener('pointerleave', () => {
+      this.dragging = false
+      this.el.classList.remove('is-dragging')
+    })
+
     this.el.addEventListener('pointermove', (e) => {
       if (!this.dragging) return
       this.centerX -= e.movementX / this.scale
       this.centerZ -= e.movementY / this.scale
       this.render()
+      this.emitViewport()
+    })
+  }
+
+  private bindKeyboard(): void {
+    this.el.addEventListener('keydown', (e) => {
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault()
+        this.zoom(1.2)
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault()
+        this.zoom(1 / 1.2)
+      } else if (e.key === '0' || e.key === 'r') {
+        e.preventDefault()
+        this.resetView()
+      }
     })
   }
 }
