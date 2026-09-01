@@ -1,5 +1,5 @@
 import { dist2, dot2, norm2, sub2, type V2 } from '../core/vec'
-import { segmentMeetsPolygon } from '../core/polygon'
+import { segmentMeetsPolygon, segmentPointDistance } from '../core/polygon'
 import type { Rng } from '../core/rng'
 import { BuildingFaces, type Face } from '../atlas/faces'
 import type { AtlasBlueprint, DistrictKind, Parcel, WealthTier } from '../types/atlas'
@@ -50,6 +50,8 @@ export class LinkPlanner {
   private readonly faces = new Map<string, BuildingFaces>()
   private readonly heights = new Map<string, number>()
   private readonly districtKind = new Map<string, DistrictKind>()
+  /** Bounding circle per parcel for cheap pair and obstruction prefilters. */
+  private readonly bounds = new Map<string, { c: V2; r: number }>()
   /** Accepted links per `${kind}:${buildingId}`. */
   private readonly linkCount = new Map<string, number>()
   private readonly usedBases = new Map<string, number[]>()
@@ -64,7 +66,14 @@ export class LinkPlanner {
     private readonly params: ResolvedParams,
     private readonly rng: Rng,
   ) {
-    for (const p of atlas.parcels) this.faces.set(p.id, new BuildingFaces(p))
+    for (const p of atlas.parcels) {
+      this.faces.set(p.id, new BuildingFaces(p))
+      const c: V2 = [
+        p.footprint.reduce((s, v) => s + v[0], 0) / p.footprint.length,
+        p.footprint.reduce((s, v) => s + v[1], 0) / p.footprint.length,
+      ]
+      this.bounds.set(p.id, { c, r: Math.max(...p.footprint.map((v) => dist2(c, v))) })
+    }
     for (const b of atlas.volumetric.buildings) this.heights.set(b.parcelId, b.height)
     for (const d of atlas.districts) this.districtKind.set(d.id, d.kind)
   }
@@ -95,12 +104,14 @@ export class LinkPlanner {
   /** Facing building pairs within span range, scored by district, tier and span. */
   private collectCandidates(kind: LinkKind, minLen: number, maxLen: number): Candidate[] {
     const out: Candidate[] = []
-    const parcels = this.atlas.parcels
+    const parcels = this.atlas.parcels.filter((p) => this.eligible(kind, p))
     for (let i = 0; i < parcels.length; i++) {
       for (let j = i + 1; j < parcels.length; j++) {
         const a = parcels[i]
         const b = parcels[j]
-        if (!this.eligible(kind, a) || !this.eligible(kind, b)) continue
+        const ba = this.bounds.get(a.id)!
+        const bb = this.bounds.get(b.id)!
+        if (dist2(ba.c, bb.c) - ba.r - bb.r > maxLen) continue
         const pair = this.bestFacingPair(a, b, minLen, maxLen)
         if (!pair) continue
         const dw = (DISTRICT_W[kind][this.districtKind.get(a.districtId)!] + DISTRICT_W[kind][this.districtKind.get(b.districtId)!]) / 2
@@ -200,6 +211,8 @@ export class LinkPlanner {
     for (const p of this.atlas.parcels) {
       if (p.id === aId || p.id === bId) continue
       if (this.heights.get(p.id)! + 1 < minY) continue
+      const b = this.bounds.get(p.id)!
+      if (segmentPointDistance(track[0], track[1], b.c) > b.r + 1) continue
       if (segmentMeetsPolygon(track[0], track[1], p.footprint)) return true
     }
     return false

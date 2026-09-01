@@ -38,6 +38,12 @@ body {
   margin: 14px 0 6px;
 }
 
+.source-line {
+  margin: 0 0 8px;
+  color: #8b93a0;
+  font-size: 12px;
+}
+
 .seed-row {
   display: flex;
   gap: 6px;

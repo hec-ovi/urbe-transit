@@ -70,6 +70,14 @@ export function offsetPolyline(path: V2[], d: number): V2[] {
   return out
 }
 
+/** Distance from point p to segment a-b. */
+export function segmentPointDistance(a: V2, b: V2, p: V2): number {
+  const ab = sub2(b, a)
+  const l2 = ab[0] * ab[0] + ab[1] * ab[1]
+  const t = l2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / l2))
+  return dist2(p, lerp2(a, b, t))
+}
+
 /** True when segment a-b touches the polygon: an endpoint inside, or any edge crossed. */
 export function segmentMeetsPolygon(a: V2, b: V2, poly: V2[]): boolean {
   if (pointInPolygon(a, poly) || pointInPolygon(b, poly)) return true

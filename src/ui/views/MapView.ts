@@ -11,6 +11,7 @@ export class MapView {
   private centerX = 0
   private centerZ = 0
   private dragging = false
+  private fitted = false
 
   constructor(
     private readonly atlas: AtlasBlueprint,
@@ -39,6 +40,13 @@ export class MapView {
   resize(width: number, height: number): void {
     this.el.width = width
     this.el.height = height
+    if (!this.fitted) {
+      this.fitted = true
+      const { min, max } = this.atlas.meta.bounds
+      const spanX = Math.max(1, max[0] - min[0])
+      const spanZ = Math.max(1, max[1] - min[1])
+      this.scale = Math.min(40, Math.max(0.05, 0.92 * Math.min(width / spanX, height / spanZ)))
+    }
     this.render()
   }
 
@@ -80,7 +88,7 @@ export class MapView {
     this.el.addEventListener('wheel', (e) => {
       e.preventDefault()
       const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
-      this.scale = Math.min(40, Math.max(0.3, this.scale * factor))
+      this.scale = Math.min(40, Math.max(0.05, this.scale * factor))
       this.render()
     })
     this.el.addEventListener('pointerdown', (e) => {

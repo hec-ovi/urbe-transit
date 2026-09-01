@@ -14,24 +14,32 @@ export interface Frame {
 type P2 = [number, number]
 
 function stroke(f: Frame, path: readonly P2[], color: string, width: number, dash: number[] = []): void {
+  strokeBatch(f, [path], color, width, dash)
+}
+
+/** One canvas stroke for many polylines of the same style; the big layers depend on this. */
+function strokeBatch(f: Frame, paths: readonly (readonly P2[])[], color: string, width: number, dash: number[] = []): void {
   const { ctx } = f
   ctx.strokeStyle = color
   ctx.lineWidth = Math.max(0.5, width * f.scale)
   ctx.setLineDash(dash.map((d) => d * f.scale))
   ctx.beginPath()
-  path.forEach(([x, z], i) => {
-    const [sx, sy] = f.toScreen(x, z)
-    if (i === 0) ctx.moveTo(sx, sy)
-    else ctx.lineTo(sx, sy)
-  })
+  for (const path of paths) {
+    path.forEach(([x, z], i) => {
+      const [sx, sy] = f.toScreen(x, z)
+      if (i === 0) ctx.moveTo(sx, sy)
+      else ctx.lineTo(sx, sy)
+    })
+  }
   ctx.stroke()
   ctx.setLineDash([])
 }
 
 function dot(f: Frame, x: number, z: number, color: string, r: number): void {
   const [sx, sy] = f.toScreen(x, z)
+  const rr = r * Math.min(1.6, Math.max(0.3, f.scale))
   f.ctx.fillStyle = color
-  f.ctx.fillRect(sx - r, sy - r, r * 2, r * 2)
+  f.ctx.fillRect(sx - rr, sy - rr, rr * 2, rr * 2)
 }
 
 const DISTRICT_FILL: Record<string, string> = {
@@ -83,23 +91,33 @@ export function paintLinks(f: Frame, out: ConnectionsOutput, kind: LinkKind, lay
 
 export function paintWalk(f: Frame, out: ConnectionsOutput, t: number): void {
   const signals = new Map(out.networks.signals.map((s) => [s.id, s]))
+  const plain: P2[][] = []
+  const links: P2[][] = []
+  const crossings = new Map<string, P2[][]>()
   for (const e of out.networks.walk.edges) {
-    let color = LAYER_COLORS.walk
     if (e.kind === 'crossing') {
-      color = '#e0e0e0'
+      let color = '#e0e0e0'
       if (e.signal) {
         const s = signals.get(e.signal.signalId)!
         color = signalStateAt(s, t)[e.signal.linkIndex] === 'G' ? '#7dff8a' : '#ff6b6b'
       }
+      crossings.set(color, [...(crossings.get(color) ?? []), e.path])
+    } else if (e.kind === 'link') {
+      links.push(e.path)
+    } else {
+      plain.push(e.path)
     }
-    stroke(f, e.path, color, e.kind === 'crossing' ? e.width : e.width * 0.6, e.kind === 'link' ? [4, 2] : [])
   }
+  strokeBatch(f, plain, LAYER_COLORS.walk, 1.4)
+  strokeBatch(f, links, LAYER_COLORS.walk, 1.4, [4, 2])
+  for (const [color, paths] of crossings) strokeBatch(f, paths, color, 3)
 }
 
 export function paintRoad(f: Frame, out: ConnectionsOutput): void {
-  for (const lane of out.networks.road.lanes) {
-    stroke(f, lane.path, LAYER_COLORS.road, 0.4)
-    for (const c of lane.next) stroke(f, c.via, '#5c6570', 0.3)
+  const lanes = out.networks.road.lanes
+  strokeBatch(f, lanes.map((l) => l.path), LAYER_COLORS.road, 0.4)
+  strokeBatch(f, lanes.flatMap((l) => l.next.map((c) => c.via)), '#5c6570', 0.3)
+  for (const lane of lanes) {
     // Direction tick at the lane midpoint.
     const mid = lane.path[Math.floor(lane.path.length / 2)]
     dot(f, mid[0], mid[1], LAYER_COLORS.road, 1.2)

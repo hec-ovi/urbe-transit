@@ -12,7 +12,11 @@ export class AppView {
   private map!: MapView
   private mapWrap!: HTMLElement
 
-  constructor(private readonly atlas: AtlasBlueprint, initialSeed: string) {
+  constructor(
+    private readonly atlas: AtlasBlueprint,
+    initialSeed: string,
+    private readonly source = 'fixture city',
+  ) {
     this.el = document.createElement('div')
     this.el.className = 'app'
     this.buildFor(initialSeed)
@@ -26,6 +30,9 @@ export class AppView {
     side.className = 'sidebar'
     const title = document.createElement('h1')
     title.textContent = 'connections'
+    const sourceLine = document.createElement('p')
+    sourceLine.className = 'source-line'
+    sourceLine.textContent = this.source
     const seedRow = document.createElement('div')
     seedRow.className = 'seed-row'
     const seedInput = document.createElement('input')
@@ -40,7 +47,7 @@ export class AppView {
     this.map = new MapView(this.atlas, output)
     const panel = new LayerPanel(output.layers, (visible) => this.map.setVisible(visible))
     const timeBar = new TimeBar(INITIAL_TIME, (t) => this.map.setTime(t))
-    side.append(title, seedRow, panel.el, timeBar.el)
+    side.append(title, sourceLine, seedRow, panel.el, timeBar.el)
 
     this.mapWrap = document.createElement('main')
     this.mapWrap.className = 'map-wrap'
