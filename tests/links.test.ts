@@ -56,6 +56,31 @@ describe('links', () => {
     expect(linkEdges.map((e) => e.linkId).sort()).toEqual(walkable.map((l) => l.id).sort())
   })
 
+  it('above-ground links never pass through a third building', () => {
+    for (const l of out.links) {
+      if (l.kind === 'tunnel') continue
+      const [ax, , az] = l.path[0]
+      const [bx, , bz] = l.path[l.path.length - 1]
+      const minY = Math.min(...l.path.map((p) => p[1]))
+      for (const parcel of atlas.parcels) {
+        if (parcel.id === l.a.buildingId || parcel.id === l.b.buildingId) continue
+        const height = atlas.volumetric.buildings.find((b) => b.parcelId === parcel.id)!.height
+        if (height + 1 < minY) continue
+        // Sampled midpoints of the track must stay outside this footprint.
+        for (let t = 0.05; t < 1; t += 0.05) {
+          const x = ax + (bx - ax) * t
+          const z = az + (bz - az) * t
+          const fp = parcel.footprint
+          let inside = false
+          for (let i = 0, j = fp.length - 1; i < fp.length; j = i++) {
+            if (fp[i][1] > z !== fp[j][1] > z && x < ((fp[j][0] - fp[i][0]) * (z - fp[i][1])) / (fp[j][1] - fp[i][1]) + fp[i][0]) inside = !inside
+          }
+          expect(inside, `${l.id} crosses ${parcel.id}`).toBe(false)
+        }
+      }
+    }
+  })
+
   it('tunnels run below ground', () => {
     for (const l of out.links.filter((x) => x.kind === 'tunnel')) {
       for (const p of l.path) expect(p[1]).toBeLessThan(0)

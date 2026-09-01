@@ -20,12 +20,6 @@ export function polygonArea(poly: V2[]): number {
   return Math.abs(a) / 2
 }
 
-export function polylineLength(path: V2[]): number {
-  let l = 0
-  for (let i = 1; i < path.length; i++) l += dist2(path[i - 1], path[i])
-  return l
-}
-
 /** Cumulative arc length at each vertex. */
 export function arcLengths(path: V2[]): number[] {
   const out = [0]
@@ -74,6 +68,20 @@ export function offsetPolyline(path: V2[], d: number): V2[] {
     out.push(add2(path[i], scale2(perp2(dir), d)))
   }
   return out
+}
+
+/** True when segment a-b touches the polygon: an endpoint inside, or any edge crossed. */
+export function segmentMeetsPolygon(a: V2, b: V2, poly: V2[]): boolean {
+  if (pointInPolygon(a, poly) || pointInPolygon(b, poly)) return true
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    if (segmentsIntersect(a, b, poly[j], poly[i])) return true
+  }
+  return false
+}
+
+function segmentsIntersect(a: V2, b: V2, c: V2, d: V2): boolean {
+  const o = (p: V2, q: V2, r: V2) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]))
+  return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b)
 }
 
 /** Trim both ends of a polyline by arc length; empty result if too short. */

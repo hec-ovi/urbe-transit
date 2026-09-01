@@ -1,4 +1,5 @@
-import { dist2, dot2, norm2, sub2 } from '../core/vec'
+import { dist2, dot2, norm2, sub2, type V2 } from '../core/vec'
+import { segmentMeetsPolygon } from '../core/polygon'
 import type { Rng } from '../core/rng'
 import { BuildingFaces, type Face } from '../atlas/faces'
 import type { AtlasBlueprint, DistrictKind, Parcel, WealthTier } from '../types/atlas'
@@ -159,6 +160,7 @@ export class LinkPlanner {
       if (!geo) continue
       if (!this.respectsBaseInvariant(c.a, geo.apertureA.base) || !this.respectsBaseInvariant(c.b, geo.apertureB.base)) continue
       if (this.overlapsFace(c.a, c.faceA.index, geo.apertureA) || this.overlapsFace(c.b, c.faceB.index, geo.apertureB)) continue
+      if (kind !== 'tunnel' && this.obstructed(c.a, c.b, geo)) continue
       this.accept(c, kind, geo)
       return true
     }
@@ -186,6 +188,21 @@ export class LinkPlanner {
       if (higher <= top(c.b)) return [base, higher]
     }
     return [base, base]
+  }
+
+  /** True when the link's ground track crosses a third building shorter than nowhere: any
+   * intersected footprint whose volume reaches above the link's lowest point blocks it. */
+  private obstructed(aId: string, bId: string, geo: LinkGeometry): boolean {
+    const start = geo.path[0]
+    const end = geo.path[geo.path.length - 1]
+    const track: [V2, V2] = [[start[0], start[2]], [end[0], end[2]]]
+    const minY = Math.min(...geo.path.map((p) => p[1]))
+    for (const p of this.atlas.parcels) {
+      if (p.id === aId || p.id === bId) continue
+      if (this.heights.get(p.id)! + 1 < minY) continue
+      if (segmentMeetsPolygon(track[0], track[1], p.footprint)) return true
+    }
+    return false
   }
 
   private respectsBaseInvariant(buildingId: string, base: number): boolean {

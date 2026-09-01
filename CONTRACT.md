@@ -11,7 +11,7 @@ Same inputs give a byte-identical output document. No LLM, no randomness outside
 Preview: `npm run dev` serves a 2D pan and zoom map over the fixture atlas with every layer toggleable. `npm test` runs the contract tests.
 
 ## In
-- atlas blueprint: `CityBlueprint` per ../atlas/CONTRACT.md (authority: ../atlas/schema/blueprint.ts). The consumed subset is mirrored at [src/types/atlas.ts](src/types/atlas.ts); fixture at `fixtures/atlas.fixture.json` stands in when atlas is absent.
+- atlas blueprint: `CityBlueprint` per ../atlas/CONTRACT.md (authority: ../atlas/schema/blueprint.ts). The consumed subset is mirrored at [src/types/atlas.ts](src/types/atlas.ts); the fixture city (`fixtures/atlas.fixture.ts`) stands in when atlas is absent.
 - params: [schemas/params.schema.json](schemas/params.schema.json). Seed, per-kind toggles (an ancient city runs with tunnels only, or nothing), link limits, day span.
 
 Conventions (project wide): units meters, ground plane XZ, +Y up, 2D points [x, z], 3D points [x, y, z], polygons CCW.
@@ -35,7 +35,7 @@ Anything the toggles request that the atlas cannot feed (subway on, no stations)
 - Determinism: identical atlas and params, identical output.
 - Face convention: face i of a building is the vertical quad over footprint segment i to i+1; the outward normal points away from the footprint interior. Face-local frame: U along the segment from vertex i, V along +Y.
 - Every aperture lies on its face within bounds, inside the building envelope; every cut polygon vertex lies exactly in the face plane. On one building, two aperture bases are either equal or at least 2.5 m apart, and apertures never overlap.
-- Link paths terminate exactly on the two face planes; `linkRefs` matches `links` one to one.
+- Link paths terminate exactly on the two face planes; `linkRefs` matches `links` one to one. An above-ground link never passes through a third building's volume.
 - Signal cycle equals the sum of its phase durations; every crossing and turn connection references an existing signal and a link index inside its state string.
 - Trip template offsets are non-decreasing with depart >= arrive; service periods do not overlap and stay inside the day span.
 
