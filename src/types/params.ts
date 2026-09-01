@@ -20,11 +20,15 @@ export interface Toggles {
 }
 
 export type LinkKindKey = 'bridge' | 'acTube' | 'wire' | 'tunnel'
+/** Kinds selected by facing building pairs, as opposed to wires, which follow streets. */
+export type FacingKindKey = 'bridge' | 'acTube' | 'tunnel'
 
 export interface LinkLimits {
   minLength: number
   maxLength: number
   minBase: number
+  /** Top of the anchor band; wires only, other kinds attach anywhere above `minBase`. */
+  maxBase?: number
   maxPerBuilding: number
   density: number
 }
@@ -39,8 +43,14 @@ export interface ResolvedParams {
 const LINK_DEFAULTS: Record<LinkKindKey, LinkLimits> = {
   bridge: { minLength: 8, maxLength: 45, minBase: 8, maxPerBuilding: 2, density: 0.5 },
   acTube: { minLength: 6, maxLength: 40, minBase: 6, maxPerBuilding: 3, density: 0.4 },
-  wire: { minLength: 8, maxLength: 80, minBase: 6, maxPerBuilding: 4, density: 0.7 },
+  // Wire lengths are the facade-to-facade span across a street, and the base pair is the anchor band.
+  wire: { minLength: 6, maxLength: 26, minBase: 4, maxBase: 8, maxPerBuilding: 10, density: 0.9 },
   tunnel: { minLength: 10, maxLength: 120, minBase: -4, maxPerBuilding: 1, density: 0.3 },
+}
+
+/** Overrides with an explicit `undefined` keep the default instead of erasing it. */
+function defined<T extends object>(o: T | undefined): Partial<T> {
+  return Object.fromEntries(Object.entries(o ?? {}).filter(([, v]) => v !== undefined)) as Partial<T>
 }
 
 export function resolveParams(params: ConnectionsParams): ResolvedParams {
@@ -60,7 +70,7 @@ export function resolveParams(params: ConnectionsParams): ResolvedParams {
   }
   const links = {} as Record<LinkKindKey, LinkLimits>
   for (const kind of Object.keys(LINK_DEFAULTS) as LinkKindKey[]) {
-    const merged = { ...LINK_DEFAULTS[kind], ...params.links?.[kind] }
+    const merged = { ...LINK_DEFAULTS[kind], ...defined(params.links?.[kind]) }
     for (const [k, v] of Object.entries(merged)) {
       if (typeof v !== 'number' || Number.isNaN(v)) {
         throw new ConnectionsError('E_PARAMS_INVALID', `must be a number`, `params.links.${kind}.${k}`)
@@ -71,6 +81,9 @@ export function resolveParams(params: ConnectionsParams): ResolvedParams {
     }
     if (merged.minLength > merged.maxLength) {
       throw new ConnectionsError('E_PARAMS_INVALID', 'minLength exceeds maxLength', `params.links.${kind}`)
+    }
+    if (merged.maxBase !== undefined && merged.maxBase < merged.minBase) {
+      throw new ConnectionsError('E_PARAMS_INVALID', 'maxBase is below minBase', `params.links.${kind}.maxBase`)
     }
     links[kind] = merged
   }

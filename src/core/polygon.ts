@@ -87,7 +87,8 @@ export function segmentMeetsPolygon(a: V2, b: V2, poly: V2[]): boolean {
   return false
 }
 
-function segmentsIntersect(a: V2, b: V2, c: V2, d: V2): boolean {
+/** True when segments a-b and c-d properly cross. */
+export function segmentsIntersect(a: V2, b: V2, c: V2, d: V2): boolean {
   const o = (p: V2, q: V2, r: V2) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]))
   return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b)
 }

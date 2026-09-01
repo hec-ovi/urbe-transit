@@ -1,6 +1,6 @@
 import { Rng } from './core/rng'
 import { validateAtlas } from './atlas/validate'
-import { LinkPlanner } from './links/planner'
+import { planLinks } from './links/plan'
 import { buildSignals } from './networks/signals'
 import { WalkBuilder } from './networks/walk'
 import { RoadBuilder } from './networks/road'
@@ -31,7 +31,7 @@ export function generate(atlas: AtlasBlueprint, params: ConnectionsParams): Conn
   validateAtlas(atlas)
   const rng = new Rng(`${resolved.seed}::${atlas.meta.seed}`)
 
-  const { links, apertures, refs } = new LinkPlanner(atlas, resolved, rng).plan()
+  const { links, apertures, refs } = planLinks(atlas, resolved, rng)
   const signalIndex = buildSignals(atlas)
   const walk = new WalkBuilder(atlas, signalIndex, links).build()
   const road = new RoadBuilder(atlas, signalIndex).build()

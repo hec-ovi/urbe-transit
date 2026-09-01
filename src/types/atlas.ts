@@ -8,7 +8,8 @@ export type Vec2 = [x: number, z: number]
 export type Polygon = Vec2[]
 export type Polyline = Vec2[]
 
-export type StreetClass = 'street' | 'road' | 'highway'
+/** Additive list: `alley` arrives with atlas pedestrian alleys, and consumers fall back on width. */
+export type StreetClass = 'alley' | 'street' | 'road' | 'highway'
 export type DistrictKind = 'downtown' | 'commercial' | 'residential' | 'industrial' | 'mixed'
 export type WealthTier = 'poor' | 'mid' | 'rich' | 'high_rich'
 

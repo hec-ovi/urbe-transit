@@ -28,7 +28,7 @@ An atlas `CityBlueprint` (the consumed subset is mirrored at `src/types/atlas.ts
 
 One document (`schemas/output.schema.json`):
 
-- **links**: kind, both endpoints (building, floor, face, aperture), centerline path, cross section, walkable flag, length
+- **links**: kind, both endpoints (building, floor, face, aperture), centerline path, cross section, walkable flag, length. Bridges, tubes and tunnels join facing buildings; wires hang across a street from facade to facade, thick over alleys and narrow streets, absent over avenues
 - **apertures**: per building opening with face index, position along the face, absolute base, size, and the exact cut polygon on the face plane. The miter cut is closed form, so a diagonal tube meets an angled wall with zero gap. Wire anchors are mounting footprints instead of holes.
 - **linkRefs**: building id to building id with kind, for the quest layer
 - **networks**: walk graph over sidewalks, corners and crossings; road lane graph with per-lane speed, direction, lane-change adjacency and turn connections; signal controllers with cycles, offsets and phase state strings; transit routes with shapes, stops, trip templates and headway service periods, so a vehicle's position at time t is closed form; air corridors at fixed altitudes, one direction per layer

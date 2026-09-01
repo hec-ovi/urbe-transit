@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { generate } from '../src'
 import type { AtlasBlueprint } from '../src/types/atlas'
+import { straddledStreet } from './helpers'
 
 /**
  * Two-box pipeline check against the committed atlas sample. Skipped when atlas is absent,
@@ -37,5 +38,20 @@ describe.skipIf(!sampleConforms())('atlas sample pipeline', () => {
     expect(out.networks.transit.routes.length).toBeGreaterThan(0)
     const again = generate(load(), { seed: 'urbe-x' })
     expect(JSON.stringify(again)).toBe(JSON.stringify(out))
+  }, 60000)
+
+  it('wires follow the real street grid: over narrow streets, never over a highway', () => {
+    const atlas = load()
+    const wires = generate(atlas, { seed: 'urbe-x' }).links.filter((l) => l.kind === 'wire')
+    expect(wires.length).toBeGreaterThan(100)
+    const perClass: Record<string, number> = {}
+    for (const w of wires) {
+      const end = w.path[w.path.length - 1]
+      const street = straddledStreet(atlas, [w.path[0][0], w.path[0][2]], [end[0], end[2]])
+      expect(street, `${w.id} spans no street`).not.toBeNull()
+      perClass[street!.class] = (perClass[street!.class] ?? 0) + 1
+    }
+    expect(perClass.highway ?? 0).toBe(0)
+    expect(perClass.street).toBeGreaterThan(10 * (perClass.road ?? 0))
   }, 60000)
 })

@@ -19,7 +19,7 @@
         "minItems": 3,
         "maxItems": 3
       },
-      "description": "world-space centerline [x,y,z]; straight for bridges and tubes, sampled catenary for wires, routed under streets for tunnels"
+      "description": "world-space centerline [x,y,z]; straight for bridges and tubes, sampled catenary for wires (facade to facade overhead across one street, both anchors at the same height), routed under streets for tunnels"
     },
     "crossSection": {
       "type": "object",

@@ -22,7 +22,7 @@
     },
     "links": {
       "type": "object",
-      "description": "selection limits per link kind",
+      "description": "selection limits per link kind. Bridges, AC tubes and tunnels pair facing buildings; wires cross a street from facade to facade, so their limits describe that crossing.",
       "properties": {
         "bridge": { "$ref": "#/$defs/linkLimits" },
         "acTube": { "$ref": "#/$defs/linkLimits" },
@@ -42,11 +42,12 @@
     "linkLimits": {
       "type": "object",
       "properties": {
-        "minLength": { "type": "number" },
-        "maxLength": { "type": "number" },
+        "minLength": { "type": "number", "description": "meters; for wires, the facade-to-facade span across the street" },
+        "maxLength": { "type": "number", "description": "meters; a street wider than this carries no wires" },
         "minBase": { "type": "number", "description": "lowest vertical base (meters, +Y) a link of this kind may attach at" },
+        "maxBase": { "type": "number", "description": "highest vertical base; wires only, where minBase and maxBase are the anchor band (default 4 to 8)" },
         "maxPerBuilding": { "type": "integer" },
-        "density": { "type": "number", "minimum": 0, "maximum": 1, "description": "fraction of candidate pairs that get a link; 0 disables like the toggle" }
+        "density": { "type": "number", "minimum": 0, "maximum": 1, "description": "fraction of candidates that get a link: facing pairs for bridges, tubes and tunnels, anchor stations along a street for wires; 0 disables like the toggle" }
       }
     }
   }

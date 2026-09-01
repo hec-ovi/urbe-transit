@@ -6,9 +6,10 @@ import type { Lane, LaneConnection } from '../types/output'
 import { StreetIndex, heading, wrap180 } from './street-util'
 import type { SignalIndex } from './signals'
 
-const LANES_PER_DIR: Record<StreetClass, number> = { street: 1, road: 2, highway: 3 }
+/** Alleys are pedestrian: no car lanes at all. */
+const LANES_PER_DIR: Record<StreetClass, number> = { alley: 0, street: 1, road: 2, highway: 3 }
 /** m/s: 30, 50, 100 km/h. */
-const SPEED: Record<StreetClass, number> = { street: 8.33, road: 13.9, highway: 27.8 }
+const SPEED: Record<StreetClass, number> = { alley: 0, street: 8.33, road: 13.9, highway: 27.8 }
 const VIA_SAMPLES = 6
 
 /** Lane graph: per-direction offset centerlines, adjacency, turn connections through intersections. */
@@ -35,7 +36,9 @@ export class RoadBuilder {
 
   private buildEdgeLanes(edgeId: string): void {
     const e = this.streets.edges.get(edgeId)!
-    const perDir = LANES_PER_DIR[e.class]
+    // A class this box does not know yet drives like a street; a class with no lanes carries no cars.
+    const perDir = LANES_PER_DIR[e.class] ?? 1
+    if (perDir < 1) return
     const laneWidth = e.width / (2 * perDir)
     this.laneCount.set(edgeId, perDir)
     for (const dir of ['f', 'b'] as const) {

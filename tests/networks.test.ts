@@ -90,10 +90,13 @@ describe('road network', () => {
     }
   })
 
-  it('every street edge carries lanes, highways more than streets', () => {
+  it('every drivable edge carries lanes, highways more than streets, alleys none', () => {
     const perEdge = new Map<string, number>()
     for (const lane of road.lanes) perEdge.set(lane.edgeId, (perEdge.get(lane.edgeId) ?? 0) + 1)
-    for (const e of atlas.streets.edges) expect(perEdge.get(e.id) ?? 0).toBeGreaterThan(0)
+    for (const e of atlas.streets.edges) {
+      if (e.class === 'alley') expect(perEdge.get(e.id) ?? 0).toBe(0)
+      else expect(perEdge.get(e.id) ?? 0).toBeGreaterThan(0)
+    }
     expect(perEdge.get('e1')!).toBeGreaterThan(perEdge.get('e7')!)
   })
 })
