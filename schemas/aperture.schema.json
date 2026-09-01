@@ -10,7 +10,7 @@
     "buildingId": { "type": "string", "description": "atlas parcel id" },
     "floor": { "type": "integer", "description": "advisory floor index from the nominal envelope floor height; -1 = below ground. `base` is authoritative." },
     "face": { "type": "integer", "minimum": 0, "description": "footprint segment index" },
-    "kind": { "enum": ["bridge", "ac-tube", "wire-anchor", "tunnel"] },
+    "kind": { "enum": ["bridge", "ac-tube", "wire-anchor", "tunnel"], "description": "wire-anchor: the cut polygon is the mounting footprint, not a hole; exterior keeps the region clear and emits an anchor node. Every other kind is a carved opening." },
     "u": { "type": "number", "description": "face-local U of the opening center, meters along the segment from vertex i" },
     "base": { "type": "number", "description": "absolute y of the opening bottom = min y over the cut polygon. On one building, two aperture bases are either equal or at least 2.5 m apart." },
     "width": { "type": "number", "description": "exact U extent of the cut polygon, meters" },
