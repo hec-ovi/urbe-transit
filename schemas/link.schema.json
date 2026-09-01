@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urbe/connections/link",
   "title": "Link",
-  "description": "One inter-building connection. Geometry is a centerline polyline with a constant cross-section; both ends terminate exactly on the target face planes (the apertures carry the exact cut polygons).",
+  "description": "One inter-building connection. Units meters, ground plane XZ, +Y up; points are [x,y,z]. Geometry is a centerline polyline with a constant cross-section; both ends terminate exactly on the target face planes (the apertures carry the exact cut polygons).",
   "type": "object",
   "required": ["id", "kind", "a", "b", "path", "crossSection", "walkable", "length"],
   "properties": {
@@ -46,7 +46,7 @@
       "required": ["buildingId", "floor", "face", "apertureId"],
       "properties": {
         "buildingId": { "type": "string" },
-        "floor": { "type": "integer" },
+        "floor": { "type": "integer", "description": "advisory; the aperture's base is authoritative" },
         "face": { "type": "integer" },
         "apertureId": { "type": "string" }
       }

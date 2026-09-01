@@ -2,20 +2,20 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urbe/connections/aperture",
   "title": "Aperture",
-  "description": "One opening a link demands on a building face. The exterior layer must keep this face region clear and carve exactly the cut polygon. Face i of a building is the vertical quad over footprint segment i -> i+1 (footprint counter-clockwise, outward normal to the right of the directed segment). Face-local frame: origin at footprint vertex i at z=0, U along the segment (meters), V straight up (meters).",
+  "description": "One opening a link demands on a building face. The exterior layer must keep this face region clear, carve exactly the cut polygon, and align a floor plate to `base`. Units meters, ground plane XZ, +Y up. Face i of a building is the vertical quad over footprint segment i -> i+1 (outward normal points away from the footprint interior). Face-local frame: origin at footprint vertex i at y=0, U along the segment (meters), V along +Y.",
   "type": "object",
-  "required": ["id", "buildingId", "floor", "face", "kind", "u", "v", "width", "height", "shape", "cut", "linkId"],
+  "required": ["id", "buildingId", "floor", "face", "kind", "u", "base", "width", "height", "shape", "cut", "linkId"],
   "properties": {
     "id": { "type": "string" },
     "buildingId": { "type": "string", "description": "atlas parcel id" },
-    "floor": { "type": "integer", "description": "floor the opening belongs to; -1 = basement (tunnels)" },
+    "floor": { "type": "integer", "description": "advisory floor index from the nominal envelope floor height; -1 = below ground. `base` is authoritative." },
     "face": { "type": "integer", "minimum": 0, "description": "footprint segment index" },
     "kind": { "enum": ["bridge", "ac-tube", "wire-anchor", "tunnel"] },
     "u": { "type": "number", "description": "face-local U of the opening center, meters along the segment from vertex i" },
-    "v": { "type": "number", "description": "face-local V of the opening center, meters above z=0 (world ground)" },
-    "width": { "type": "number", "description": "opening width along U, meters (bounding size for slanted cuts)" },
-    "height": { "type": "number", "description": "opening height along V, meters" },
-    "shape": { "enum": ["rect", "circle"] },
+    "base": { "type": "number", "description": "absolute y of the opening bottom = min y over the cut polygon. On one building, two aperture bases are either equal or at least 2.5 m apart." },
+    "width": { "type": "number", "description": "exact U extent of the cut polygon, meters" },
+    "height": { "type": "number", "description": "exact V extent of the cut polygon, meters; opening spans [base, base+height]" },
+    "shape": { "enum": ["rect", "circle"], "description": "link cross section; a slanted circle cut is the exact ellipse sampled by the polygon" },
     "cut": {
       "type": "object",
       "required": ["polygon", "axisDir"],
@@ -30,7 +30,7 @@
             "minItems": 3,
             "maxItems": 3
           },
-          "description": "world-space [x,y,z] loop, counter-clockwise seen from outside; every vertex lies exactly on the face plane"
+          "description": "world-space [x,y,z] loop; every vertex lies exactly on the face plane"
         },
         "axisDir": {
           "type": "array",

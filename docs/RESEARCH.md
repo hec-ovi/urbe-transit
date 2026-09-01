@@ -15,7 +15,7 @@ Compact conclusions driving the contract and implementation. Full sources at the
 
 ## Transit routes
 - TNDP literature: greedy demand-driven construction (RGA and Pair Insertion lineage) is the deterministic reference; 2024-2026 learned methods still use it as baseline. Demand proxy without real data = gravity model over parcels (residential floor area produces, commercial and office floor area attracts, decayed by network distance).
-- Atlas owns line topology (ordered stops); connections routes each line: bus = shortest path over bus-capable street edges between consecutive stops (graphology-style Dijkstra, stable tie-breaks), subway and train = station-to-station geometry off the street graph (subway below ground).
+- Atlas owns line topology (ordered stops and, for buses, the driven street edge list); connections owns lane-level route geometry, elevations (subway below ground), timetables and the closed-form vehicle math.
 - Stop spacing norms (for validation, atlas places stops): bus 350-600 m, metro 1-2 km; stops at intersections, far side of the signal, paired with crossings.
 
 ## Timetables

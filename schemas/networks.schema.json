@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urbe/connections/networks",
   "title": "Networks",
-  "description": "All movement networks. One polyline-lane model, instantiated for sidewalks (walk), roads (lanes) and air corridors; transit rides on its own shapes with frequency timetables. Signal state at time t is closed-form: phase containing (t + offset) mod cycle; state strings hold one char per controlled link (G=go, r=stop, y=clearing).",
+  "description": "All movement networks. Units meters, ground plane XZ, +Y up: 2D points are [x,z], 3D points [x,y,z]. One polyline-lane model, instantiated for sidewalks (walk), roads (lanes) and air corridors; transit rides on its own shapes with frequency timetables. Signal state at time t is closed-form: phase containing (t + offset) mod cycle; state strings hold one char per controlled link (G=go, r=stop, y=clearing).",
   "type": "object",
   "required": ["walk", "road", "signals", "transit", "air"],
   "properties": {
@@ -14,11 +14,11 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "x", "y", "kind"],
+            "required": ["id", "x", "z", "kind"],
             "properties": {
               "id": { "type": "string" },
               "x": { "type": "number" },
-              "y": { "type": "number" },
+              "z": { "type": "number" },
               "kind": { "enum": ["sidewalk", "corner", "crossing-end", "stop", "station", "entry", "link-portal"] },
               "ref": { "type": "string", "description": "stop/station/parcel/link id this node serves, by kind" }
             }
@@ -134,7 +134,7 @@
                   }
                 }
               },
-              "shape": { "$ref": "#/$defs/path3", "description": "route geometry; subway runs below ground (negative z)" },
+              "shape": { "$ref": "#/$defs/path3", "description": "route geometry [x,y,z]; subway runs below ground (negative y)" },
               "template": {
                 "type": "array",
                 "items": {
@@ -177,7 +177,7 @@
             "required": ["id", "altitude", "path", "width", "speed"],
             "properties": {
               "id": { "type": "string" },
-              "altitude": { "type": "number", "description": "meters; constant per corridor, one flight direction per altitude layer" },
+              "altitude": { "type": "number", "description": "y in meters; constant per corridor, one flight direction per altitude layer" },
               "path": { "$ref": "#/$defs/path2" },
               "width": { "type": "number" },
               "speed": { "type": "number", "description": "m/s" }

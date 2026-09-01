@@ -44,7 +44,7 @@
       "properties": {
         "minLength": { "type": "number" },
         "maxLength": { "type": "number" },
-        "minFloor": { "type": "integer", "description": "lowest floor a link of this kind may attach to" },
+        "minBase": { "type": "number", "description": "lowest vertical base (meters, +Y) a link of this kind may attach at" },
         "maxPerBuilding": { "type": "integer" },
         "density": { "type": "number", "minimum": 0, "maximum": 1, "description": "fraction of candidate pairs that get a link; 0 disables like the toggle" }
       }
