@@ -1,5 +1,5 @@
 /**
- * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.3).
+ * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.4).
  * Units: meters. Ground plane XZ, +Y up; 2D points are [x, z]; heights along +Y.
  * Polygons: CCW rings, first point not repeated.
  */
@@ -69,6 +69,8 @@ export interface StreetEdge {
   width: number
   /** Per side, 0 = none. Left/right relative to path direction. */
   sidewalk: { left: number; right: number }
+  /** Surface height above the ground plane: 0 at grade, 8 on a highway deck. Absent reads as 0. */
+  level?: number
 }
 
 export interface Crossing {

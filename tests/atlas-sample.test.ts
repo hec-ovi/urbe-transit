@@ -3,7 +3,8 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { generate } from '../src'
 import type { AtlasBlueprint } from '../src/types/atlas'
-import { linkGround, straddledStreet, wireDensityPerClass } from './helpers'
+import { linkGround, soffitOverStreets, straddledStreet, wireDensityPerClass } from './helpers'
+import { MIN_CROSSING_CLEARANCE } from '../src/links/clearance'
 
 /**
  * Two-box pipeline check against every committed atlas sample, smallest to largest. Skipped only
@@ -45,6 +46,17 @@ describe.skipIf(!present).each(SAMPLES)('atlas sample pipeline: %s', (name) => {
     const others = Object.entries(density).filter(([cls]) => cls !== 'alley')
     for (const [cls, d] of others) expect(density.alley, `alley vs ${cls}`).toBeGreaterThan(d)
     expect(density.highway ?? 0).toBe(0)
+  }, 120000)
+
+  it('carries real bridges and AC tubes, every one flying clear of the street it crosses', () => {
+    for (const kind of ['bridge', 'ac-tube'] as const) {
+      expect(out.links.filter((l) => l.kind === kind).length, `${kind} count`).toBeGreaterThan(0)
+    }
+    const crossing = soffitOverStreets(atlas, out).filter((c) => c.level !== null)
+    expect(crossing.length).toBeGreaterThan(0)
+    for (const c of crossing) {
+      expect(c.soffit - c.level!, `${c.id} over a street at ${c.level}`).toBeGreaterThanOrEqual(MIN_CROSSING_CLEARANCE)
+    }
   }, 120000)
 
   it('every wire spans one real street of the blueprint', () => {

@@ -1,6 +1,6 @@
 /**
  * Deterministic fixture in the atlas blueprint shape (consumed subset).
- * A 4x3 street grid with a highway row, a road row, curved and straight streets, an alley with
+ * A 4x3 street grid with a highway row on an 8 m deck, a road row, curved and straight streets, an alley with
  * buildings on both sides, three districts, facing building pairs for every link kind, and all
  * transit modes. The alley keeps a carriageway, which the 0.2 blueprints have and later ones
  * drop, so both alley shapes stay covered; tests build the carriageway-less one from it.
@@ -19,13 +19,15 @@ interface EdgeSpec {
   cls: StreetEdge['class']
   width: number
   sw: number
+  /** Surface height; the highway row runs on a deck, as atlas builds it. */
+  level?: number
   path?: V2[]
 }
 
 const EDGE_SPECS: EdgeSpec[] = [
-  { id: 'e0', from: 0, to: 1, cls: 'highway', width: 20, sw: 0 },
-  { id: 'e1', from: 1, to: 2, cls: 'highway', width: 20, sw: 0 },
-  { id: 'e2', from: 2, to: 3, cls: 'highway', width: 20, sw: 0 },
+  { id: 'e0', level: 8, from: 0, to: 1, cls: 'highway', width: 20, sw: 0 },
+  { id: 'e1', level: 8, from: 1, to: 2, cls: 'highway', width: 20, sw: 0 },
+  { id: 'e2', level: 8, from: 2, to: 3, cls: 'highway', width: 20, sw: 0 },
   { id: 'e3', from: 4, to: 5, cls: 'road', width: 14, sw: 3 },
   { id: 'e4', from: 5, to: 6, cls: 'road', width: 14, sw: 3 },
   { id: 'e5', from: 6, to: 7, cls: 'road', width: 14, sw: 3 },
@@ -104,6 +106,7 @@ function edges(ns: StreetNode[]): StreetEdge[] {
     path: s.path ?? [ns[s.from].position, ns[s.to].position],
     width: s.width,
     sidewalk: { left: s.sw, right: s.sw },
+    level: s.level ?? 0,
   }))
 }
 

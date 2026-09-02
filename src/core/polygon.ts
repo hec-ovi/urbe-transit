@@ -78,6 +78,17 @@ export function segmentPointDistance(a: V2, b: V2, p: V2): number {
   return dist2(p, lerp2(a, b, t))
 }
 
+/** Distance between segments a-b and c-d; 0 when they cross. */
+export function segmentSegmentDistance(a: V2, b: V2, c: V2, d: V2): number {
+  if (segmentsIntersect(a, b, c, d)) return 0
+  return Math.min(
+    segmentPointDistance(a, b, c),
+    segmentPointDistance(a, b, d),
+    segmentPointDistance(c, d, a),
+    segmentPointDistance(c, d, b),
+  )
+}
+
 /** True when segment a-b touches the polygon: an endpoint inside, or any edge crossed. */
 export function segmentMeetsPolygon(a: V2, b: V2, poly: V2[]): boolean {
   if (pointInPolygon(a, poly) || pointInPolygon(b, poly)) return true

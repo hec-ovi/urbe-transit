@@ -1,5 +1,7 @@
 # Changelog
 
+0.3: bridges and AC tubes fly over the street, never through it: a link crossing a street keeps its underside 5.5 m above that street's surface, so one crossing a highway deck starts at 13.5 m. Street `level` is read from the blueprint.
+
 0.2.1: a street edge carries lanes when it has a carriageway and is valid when its carriageway plus sidewalks are positive, so atlas alleys (carriageway 0, all sidewalk) generate as pedestrian ground with the top wire density. The pipeline test runs over every committed atlas sample.
 
 0.2: wires cross streets overhead, facade to facade, anchored in a 4 to 8 m band; density follows the street class, so alleys and narrow short streets carry several per block and avenues none. Atlas street classes read additively, with `alley` as the top wire class and no car lanes.

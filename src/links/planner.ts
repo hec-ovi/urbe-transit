@@ -5,6 +5,7 @@ import type { AtlasBlueprint, DistrictKind, Parcel, WealthTier } from '../types/
 import type { ResolvedParams, FacingKindKey } from '../types/params'
 import type { ApertureKind, LinkKind } from '../types/output'
 import { buildLinkGeometry, CROSS_SECTIONS } from './geometry'
+import { StreetBands } from './clearance'
 import type { BuildingIndex } from './buildings'
 import type { LinkRegistry } from './registry'
 
@@ -37,9 +38,16 @@ const TUNNEL_TYPES = new Set(['corpo', 'military', 'police', 'hospital', 'mall']
 const BASE_GRID = 4
 const U_FRACTIONS = [0.5, 0.32, 0.68]
 
+/** Face stations of one candidate: where on each face the link would land. */
+interface Station {
+  uA: number
+  uB: number
+}
+
 /** Picks facing building pairs per kind, places bases on a grid, builds exact geometry. */
 export class LinkPlanner {
   private readonly districtKind = new Map<string, DistrictKind>()
+  private readonly bands: StreetBands
 
   constructor(
     private readonly atlas: AtlasBlueprint,
@@ -48,6 +56,7 @@ export class LinkPlanner {
     private readonly registry: LinkRegistry,
   ) {
     for (const d of atlas.districts) this.districtKind.set(d.id, d.kind)
+    this.bands = new StreetBands(atlas)
   }
 
   plan(key: FacingKindKey, kind: FacingKind, rng: Rng): void {
@@ -118,43 +127,61 @@ export class LinkPlanner {
 
   private tryBuild(c: Candidate, key: FacingKindKey, kind: FacingKind, rng: Rng): boolean {
     const cross = CROSS_SECTIONS[kind]
-    const [baseA, baseB] = this.pickBases(c, key, kind, rng)
-    if (baseA === null || baseB === null) return false
-    for (const frac of U_FRACTIONS) {
-      const uA = c.faceA.length * frac
-      const uB = c.faceB.length * (1 - frac)
-      const geo = buildLinkGeometry(
-        this.buildings.faces(c.a), c.faceA, uA, baseA + cross.height / 2,
-        this.buildings.faces(c.b), c.faceB, uB, baseB + cross.height / 2,
-        kind as ApertureKind, cross,
-      )
-      if (!geo) continue
-      if (!this.registry.fits(geo.apertureA) || !this.registry.fits(geo.apertureB)) continue
-      if (kind !== 'tunnel' && this.buildings.blocks(c.a, c.b, geo.path)) continue
-      this.registry.add(kind as LinkKind, c.a, c.b, geo)
-      return true
+    const stations: Station[] = U_FRACTIONS.map((frac) => ({
+      uA: c.faceA.length * frac,
+      uB: c.faceB.length * (1 - frac),
+    }))
+    const floor = kind === 'tunnel' ? -Infinity : this.clearanceFloor(c, stations)
+    const bases = this.baseCandidates(c, key, kind, rng, floor)
+    for (const { uA, uB } of stations) {
+      for (const [baseA, baseB] of bases) {
+        const geo = buildLinkGeometry(
+          this.buildings.faces(c.a), c.faceA, uA, baseA + cross.height / 2,
+          this.buildings.faces(c.b), c.faceB, uB, baseB + cross.height / 2,
+          kind as ApertureKind, cross,
+        )
+        if (!geo) continue
+        // The lower aperture base is the link's underside: the miter cut reaches its lowest there.
+        if (Math.min(geo.apertureA.base, geo.apertureB.base) < floor - 1e-9) continue
+        if (!this.registry.fits(geo.apertureA) || !this.registry.fits(geo.apertureB)) continue
+        if (kind !== 'tunnel' && this.buildings.blocks(c.a, c.b, geo.path)) continue
+        this.registry.add(kind as LinkKind, c.a, c.b, geo)
+        return true
+      }
     }
     return false
   }
 
-  /** Grid bases inside both buildings' feasible ranges; occasionally one step apart for a diagonal. */
-  private pickBases(c: Candidate, key: FacingKindKey, kind: FacingKind, rng: Rng): [number | null, number | null] {
+  /** Lowest underside the streets under this pair allow, over every station the pair can use. */
+  private clearanceFloor(c: Candidate, stations: readonly Station[]): number {
+    let floor = -Infinity
+    for (const { uA, uB } of stations) {
+      const a = this.buildings.faces(c.a).pointOn(c.faceA, uA, 0)
+      const b = this.buildings.faces(c.b).pointOn(c.faceB, uB, 0)
+      floor = Math.max(floor, this.bands.floorOver([a[0], a[2]], [b[0], b[2]]))
+    }
+    return floor
+  }
+
+  /** Grid bases inside both buildings' feasible ranges, tried from a seeded start; the first
+   *  entry of a pair is occasionally one step lower, for a diagonal. */
+  private baseCandidates(c: Candidate, key: FacingKindKey, kind: FacingKind, rng: Rng, floor: number): [number, number][] {
     const limits = this.params.links[key]
+    if (kind === 'tunnel') return [[limits.minBase, limits.minBase]]
     const cross = CROSS_SECTIONS[kind]
-    if (kind === 'tunnel') return [limits.minBase, limits.minBase]
     const top = (id: string) => this.buildings.height(id) - cross.height - 2
-    const gridIn = (lo: number, hi: number): number[] => {
-      const out: number[] = []
-      for (let v = Math.ceil(lo / BASE_GRID) * BASE_GRID; v <= hi; v += BASE_GRID) out.push(v)
-      return out
+    const ceiling = Math.min(top(c.a), top(c.b))
+    const grid: number[] = []
+    for (let v = Math.ceil(Math.max(limits.minBase, floor) / BASE_GRID) * BASE_GRID; v <= ceiling; v += BASE_GRID) grid.push(v)
+    if (grid.length === 0) return []
+    const start = rng.int(0, grid.length - 1)
+    const stepUp = rng.next() < 0.25
+    const out: [number, number][] = []
+    for (let i = 0; i < grid.length; i++) {
+      const base = grid[(start + i) % grid.length]
+      if (stepUp && base + BASE_GRID <= top(c.b)) out.push([base, base + BASE_GRID])
+      out.push([base, base])
     }
-    const shared = gridIn(limits.minBase, Math.min(top(c.a), top(c.b)))
-    if (shared.length === 0) return [null, null]
-    const base = rng.pick(shared)
-    if (rng.next() < 0.25) {
-      const higher = base + BASE_GRID
-      if (higher <= top(c.b)) return [base, higher]
-    }
-    return [base, base]
+    return out
   }
 }

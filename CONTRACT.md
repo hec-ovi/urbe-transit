@@ -14,6 +14,8 @@ Preview: `npm run dev` serves a 2D pan and zoom map over the fixture atlas with 
 - atlas blueprint: `CityBlueprint` per ../atlas/CONTRACT.md (authority: ../atlas/schema/blueprint.ts). The consumed subset is mirrored at [src/types/atlas.ts](src/types/atlas.ts); the fixture city (`fixtures/atlas.fixture.ts`) stands in when atlas is absent.
 - params: [schemas/params.schema.json](schemas/params.schema.json). Seed, per-kind toggles (an ancient city runs with tunnels only, or nothing), link limits, day span. For wires the limits read as the street crossing: lengths are the facade-to-facade span, `minBase`/`maxBase` are the anchor height band, `density` is the share of candidate anchor stations along a street that get one.
 
+Street `level` is the surface height of an edge: 0 at grade, 8 on a highway deck. Absent reads as 0.
+
 Street classes come from atlas and the list is additive: `alley` carries the most wire, then `street`, then `road`; `highway` none. A class this box does not know falls back to its carriageway width. An edge with no carriageway is pedestrian ground, all of it sidewalk, and carries no car lanes: that is how an `alley` arrives. An edge is valid when its carriageway plus its two sidewalks are positive; the carriageway alone may be 0.
 
 Conventions (project wide): units meters, ground plane XZ, +Y up, 2D points [x, z], 3D points [x, y, z], polygons CCW.
@@ -38,6 +40,7 @@ Anything the toggles request that the atlas cannot feed (subway on, no stations)
 - Face convention: face i of a building is the vertical quad over footprint segment i to i+1; the outward normal points away from the footprint interior. Face-local frame: U along the segment from vertex i, V along +Y.
 - Every aperture lies on its face within bounds, inside the building envelope; every cut polygon vertex lies exactly in the face plane. On one building, two aperture bases are either equal or at least 2.5 m apart, and apertures never overlap.
 - Link paths terminate exactly on the two face planes; `linkRefs` matches `links` one to one. An above-ground link never passes through a third building's volume.
+- A bridge or an AC tube flies over the street it crosses: where its ground track passes over a street's ground band (carriageway plus sidewalks), its underside stands at least 5.5 m above that street's `level`, so one crossing a highway deck starts at 13.5 m. The underside is the lower of the link's two aperture bases, the point where the miter cut reaches deepest. Nothing spans a street at ground level, whatever `minBase` asks for; a link that cannot clear what it crosses is not built. Tunnels run below every street.
 - A wire spans exactly one street: both anchors sit on buildings facing each other across that street's centerline, at the same height inside the anchor band (4 to 8 m by default), and the catenary sags at most 3% of the span below them. Wire count follows the street: several per short block on alleys and narrow streets, few on roads, none on highways.
 - Signal cycle equals the sum of its phase durations; every crossing and turn connection references an existing signal and a link index inside its state string.
 - Trip template offsets are non-decreasing with depart >= arrive; service periods do not overlap and stay inside the day span.
