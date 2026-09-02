@@ -1,2 +1,2 @@
 /** Kept in step with package.json and CHANGELOG.md. */
-export const VERSION = '0.7.0'
+export const VERSION = '0.8.0'

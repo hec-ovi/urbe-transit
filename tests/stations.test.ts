@@ -27,6 +27,25 @@ function platformOnCorridor(): AtlasBlueprint {
   return atlas
 }
 
+/** A thin shaft that misses a tunnel centerline but clips the edge of its swept section. */
+function shaftOnTunnelEdge(): AtlasBlueprint {
+  const atlas = buildFixtureAtlas()
+  const target = generate(atlas, { seed: 'alpha' }).links.find((l) => l.kind === 'tunnel')!
+  const a = target.path[0]
+  const b = target.path[target.path.length - 1]
+  const dx = b[0] - a[0]
+  const dz = b[2] - a[2]
+  const len = Math.hypot(dx, dz)
+  const mid: Vec2 = [(a[0] + b[0]) / 2, (a[2] + b[2]) / 2]
+  const offset = target.crossSection.width / 2 + 0.05
+  const center: Vec2 = [mid[0] - (dz / len) * offset, mid[1] + (dx / len) * offset]
+  atlas.transit.subwayStations[0].shafts = [
+    ...(atlas.transit.subwayStations[0].shafts ?? []),
+    { footprint: rect(center, 0.2, 0.2), top: 0, bottom: -12 },
+  ]
+  return atlas
+}
+
 const throughCorridor = (out: ReturnType<typeof generate>) =>
   out.links.filter((l) => Math.abs(l.path[0][0] - CORRIDOR[0]) < 12 && Math.abs(l.path[0][2] - CORRIDOR[1]) < 22).length
 
@@ -56,6 +75,12 @@ describe('station volumes are kept clear', () => {
       }
     }
     expect(checked).toBeGreaterThan(0)
+  })
+
+  it('a station cannot clip the edge of a swept link section', () => {
+    const atlas = shaftOnTunnelEdge()
+    const met = stationApproach(atlas, generate(atlas, { seed: 'alpha' }))
+    for (const m of met) expect(m.distance, `${m.kind} ${m.linkId} in ${m.volume}`).toBeGreaterThan(0)
   })
 
   it('a platform at grade does not evict what flies over it', () => {

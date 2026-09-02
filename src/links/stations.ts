@@ -1,6 +1,6 @@
 import type { V2, V3 } from '../core/vec'
-import { segmentMeetsPolygon } from '../core/polygon'
-import { bbox, overlaps, type Box } from '../core/box'
+import { segmentPolygonDistance } from '../core/polygon'
+import { bbox, grow, overlaps, type Box } from '../core/box'
 import type { AtlasBlueprint } from '../types/atlas'
 
 /** One solid a station occupies: a plan footprint between two heights. */
@@ -12,7 +12,7 @@ interface Volume {
 }
 
 /** Plan track and vertical extent of a link solid: its section swept along its path. */
-export function linkSolid(path: readonly V3[], height: number): { a: V2; b: V2; bottom: number; top: number } {
+export function linkSolid(path: readonly V3[], width: number, height: number): { a: V2; b: V2; bottom: number; top: number; halfWidth: number } {
   const ys = path.map((p) => p[1])
   const end = path[path.length - 1]
   return {
@@ -20,6 +20,7 @@ export function linkSolid(path: readonly V3[], height: number): { a: V2; b: V2; 
     b: [end[0], end[2]],
     bottom: Math.min(...ys) - height / 2,
     top: Math.max(...ys) + height / 2,
+    halfWidth: width / 2,
   }
 }
 
@@ -48,12 +49,12 @@ export class StationVolumes {
   }
 
   /** True when a solid spanning a to b between `bottom` and `top` enters a station. */
-  hits(a: V2, b: V2, bottom: number, top: number): boolean {
-    const track = bbox([a, b])
+  hits(a: V2, b: V2, bottom: number, top: number, halfWidth: number): boolean {
+    const track = grow(bbox([a, b]), halfWidth)
     for (const v of this.volumes) {
       if (bottom >= v.top || top <= v.bottom) continue
       if (!overlaps(track, v.bounds)) continue
-      if (segmentMeetsPolygon(a, b, v.footprint)) return true
+      if (segmentPolygonDistance(a, b, v.footprint) <= halfWidth + 1e-9) return true
     }
     return false
   }

@@ -2,7 +2,7 @@ import type { V2 } from './vec'
 import { add2, dist2, lerp2, norm2, perp2, scale2, sub2 } from './vec'
 
 /** Ray-cast point-in-polygon on the ground plane. */
-export function pointInPolygon(p: V2, poly: V2[]): boolean {
+export function pointInPolygon(p: V2, poly: readonly V2[]): boolean {
   let inside = false
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const [xi, zi] = poly[i]
@@ -89,8 +89,20 @@ export function segmentSegmentDistance(a: V2, b: V2, c: V2, d: V2): number {
   )
 }
 
+/** Distance from segment a-b to a polygon boundary or interior. */
+export function segmentPolygonDistance(a: V2, b: V2, poly: readonly V2[]): number {
+  if (pointInPolygon(a, poly) || pointInPolygon(b, poly)) return 0
+  let best = Infinity
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const d = segmentSegmentDistance(a, b, poly[j], poly[i])
+    if (d === 0) return 0
+    best = Math.min(best, d)
+  }
+  return best
+}
+
 /** True when segment a-b touches the polygon: an endpoint inside, or any edge crossed. */
-export function segmentMeetsPolygon(a: V2, b: V2, poly: V2[]): boolean {
+export function segmentMeetsPolygon(a: V2, b: V2, poly: readonly V2[]): boolean {
   if (pointInPolygon(a, poly) || pointInPolygon(b, poly)) return true
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     if (segmentsIntersect(a, b, poly[j], poly[i])) return true
@@ -98,10 +110,18 @@ export function segmentMeetsPolygon(a: V2, b: V2, poly: V2[]): boolean {
   return false
 }
 
-/** True when segments a-b and c-d properly cross. */
+/** True when segments a-b and c-d cross, touch, or overlap collinearly. */
 export function segmentsIntersect(a: V2, b: V2, c: V2, d: V2): boolean {
-  const o = (p: V2, q: V2, r: V2) => Math.sign((q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]))
-  return o(a, b, c) !== o(a, b, d) && o(c, d, a) !== o(c, d, b)
+  const EPS = 1e-9
+  const cross = (p: V2, q: V2, r: V2) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+  const on = (p: V2, q: V2, r: V2) =>
+    Math.abs(cross(p, q, r)) <= EPS &&
+    r[0] >= Math.min(p[0], q[0]) - EPS && r[0] <= Math.max(p[0], q[0]) + EPS &&
+    r[1] >= Math.min(p[1], q[1]) - EPS && r[1] <= Math.max(p[1], q[1]) + EPS
+  const [abc, abd, cda, cdb] = [cross(a, b, c), cross(a, b, d), cross(c, d, a), cross(c, d, b)]
+  if (((abc > EPS && abd < -EPS) || (abc < -EPS && abd > EPS)) &&
+      ((cda > EPS && cdb < -EPS) || (cda < -EPS && cdb > EPS))) return true
+  return on(a, b, c) || on(a, b, d) || on(c, d, a) || on(c, d, b)
 }
 
 /** Trim both ends of a polyline by arc length; empty result if too short. */

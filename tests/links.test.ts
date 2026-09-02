@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generate } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
-import { facePlaneDistance } from './helpers'
+import { facePlaneDistance, linkGround, segmentPolygonDistance } from './helpers'
 
 const atlas = buildFixtureAtlas()
 const out = generate(atlas, { seed: 'alpha' })
@@ -87,6 +87,23 @@ describe('links', () => {
           }
           expect(inside, `${l.id} crosses ${parcel.id}`).toBe(false)
         }
+      }
+    }
+  })
+
+  it('the complete width of every above-ground link clears third buildings', () => {
+    for (const l of out.links) {
+      if (l.kind === 'tunnel') continue
+      const [a, b] = linkGround(l)
+      const bottom = Math.min(...l.path.map((p) => p[1])) - l.crossSection.height / 2
+      for (const parcel of atlas.parcels) {
+        if (parcel.id === l.a.buildingId || parcel.id === l.b.buildingId) continue
+        const building = atlas.volumetric.buildings.find((v) => v.parcelId === parcel.id)!
+        if (building.height <= bottom) continue
+        expect(
+          segmentPolygonDistance(a, b, parcel.footprint),
+          `${l.id} ${l.kind} clips ${parcel.id}`,
+        ).toBeGreaterThan(l.crossSection.width / 2)
       }
     }
   })

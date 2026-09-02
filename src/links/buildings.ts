@@ -1,5 +1,5 @@
 import { dist2, type V2, type V3 } from '../core/vec'
-import { segmentMeetsPolygon, segmentPointDistance } from '../core/polygon'
+import { segmentPointDistance, segmentPolygonDistance } from '../core/polygon'
 import { BuildingFaces } from '../atlas/faces'
 import type { AtlasBlueprint, Parcel } from '../types/atlas'
 
@@ -62,18 +62,19 @@ export class BuildingIndex {
     return out
   }
 
-  /** True when the link's ground track crosses a third building that reaches its lowest point. */
-  blocks(aId: string, bId: string, path: V3[]): boolean {
+  /** True when the swept link solid clips a third building. */
+  blocks(aId: string, bId: string, path: V3[], width: number, height: number): boolean {
     const start = path[0]
     const end = path[path.length - 1]
     const track: [V2, V2] = [[start[0], start[2]], [end[0], end[2]]]
-    const minY = Math.min(...path.map((p) => p[1]))
+    const bottom = Math.min(...path.map((p) => p[1])) - height / 2
+    const halfWidth = width / 2
     for (const p of this.parcels) {
       if (p.id === aId || p.id === bId) continue
-      if (this.heightById.get(p.id)! + 1 < minY) continue
+      if (this.heightById.get(p.id)! <= bottom + 1e-9) continue
       const b = this.boundsById.get(p.id)!
-      if (segmentPointDistance(track[0], track[1], b.c) > b.r + 1) continue
-      if (segmentMeetsPolygon(track[0], track[1], p.footprint)) return true
+      if (segmentPointDistance(track[0], track[1], b.c) > b.r + halfWidth) continue
+      if (segmentPolygonDistance(track[0], track[1], p.footprint) <= halfWidth + 1e-9) return true
     }
     return false
   }

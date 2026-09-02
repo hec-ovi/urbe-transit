@@ -165,9 +165,10 @@ export class WirePlanner {
       )
       if (!geo) continue
       if (!this.registry.fits(geo.apertureA) || !this.registry.fits(geo.apertureB)) continue
-      const solid = linkSolid(geo.path, CROSS_SECTIONS.wire.height)
-      if (this.stations.hits(solid.a, solid.b, solid.bottom, solid.top)) continue
-      if (this.buildings.blocks(a.buildingId, b.buildingId, geo.path)) continue
+      const cross = CROSS_SECTIONS.wire
+      const solid = linkSolid(geo.path, cross.width, cross.height)
+      if (this.stations.hits(solid.a, solid.b, solid.bottom, solid.top, solid.halfWidth)) continue
+      if (this.buildings.blocks(a.buildingId, b.buildingId, geo.path, cross.width, cross.height)) continue
       this.registry.add('wire', a.buildingId, b.buildingId, geo)
       return true
     }

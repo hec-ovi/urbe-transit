@@ -29,12 +29,12 @@ export class StreetBands {
   }
 
   /** Highest street surface the ground track a-b passes over; null when it passes over none. */
-  levelUnder(a: V2, b: V2): number | null {
+  levelUnder(a: V2, b: V2, halfWidth = 0): number | null {
     let top: number | null = null
     for (const s of this.bands) {
       if (top !== null && s.level <= top) continue
       for (let i = 1; i < s.path.length; i++) {
-        if (segmentSegmentDistance(a, b, s.path[i - 1], s.path[i]) <= s.half) {
+        if (segmentSegmentDistance(a, b, s.path[i - 1], s.path[i]) <= s.half + halfWidth) {
           top = s.level
           break
         }
@@ -44,8 +44,8 @@ export class StreetBands {
   }
 
   /** Lowest underside a link crossing this track may take; -Infinity when it crosses no street. */
-  floorOver(a: V2, b: V2): number {
-    const level = this.levelUnder(a, b)
+  floorOver(a: V2, b: V2, halfWidth = 0): number {
+    const level = this.levelUnder(a, b, halfWidth)
     return level === null ? -Infinity : level + MIN_CROSSING_CLEARANCE
   }
 }

@@ -134,7 +134,7 @@ export class LinkPlanner {
       uA: c.faceA.length * frac,
       uB: c.faceB.length * (1 - frac),
     }))
-    const floor = kind === 'tunnel' ? -Infinity : this.clearanceFloor(c, stations)
+    const floor = kind === 'tunnel' ? -Infinity : this.clearanceFloor(c, stations, cross.width / 2)
     const bases = this.baseCandidates(c, key, kind, rng, floor)
     for (const { uA, uB } of stations) {
       for (const [baseA, baseB] of bases) {
@@ -147,9 +147,9 @@ export class LinkPlanner {
         // The lower aperture base is the link's underside: the miter cut reaches its lowest there.
         if (Math.min(geo.apertureA.base, geo.apertureB.base) < floor - 1e-9) continue
         if (!this.registry.fits(geo.apertureA) || !this.registry.fits(geo.apertureB)) continue
-        const solid = linkSolid(geo.path, cross.height)
-        if (this.stations.hits(solid.a, solid.b, solid.bottom, solid.top)) continue
-        if (kind !== 'tunnel' && this.buildings.blocks(c.a, c.b, geo.path)) continue
+        const solid = linkSolid(geo.path, cross.width, cross.height)
+        if (this.stations.hits(solid.a, solid.b, solid.bottom, solid.top, solid.halfWidth)) continue
+        if (kind !== 'tunnel' && this.buildings.blocks(c.a, c.b, geo.path, cross.width, cross.height)) continue
         this.registry.add(kind as LinkKind, c.a, c.b, geo)
         return true
       }
@@ -158,12 +158,12 @@ export class LinkPlanner {
   }
 
   /** Lowest underside the streets under this pair allow, over every station the pair can use. */
-  private clearanceFloor(c: Candidate, stations: readonly Station[]): number {
+  private clearanceFloor(c: Candidate, stations: readonly Station[], halfWidth: number): number {
     let floor = -Infinity
     for (const { uA, uB } of stations) {
       const a = this.buildings.faces(c.a).pointOn(c.faceA, uA, 0)
       const b = this.buildings.faces(c.b).pointOn(c.faceB, uB, 0)
-      floor = Math.max(floor, this.bands.floorOver([a[0], a[2]], [b[0], b[2]]))
+      floor = Math.max(floor, this.bands.floorOver([a[0], a[2]], [b[0], b[2]], halfWidth))
     }
     return floor
   }

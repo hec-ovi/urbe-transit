@@ -110,7 +110,7 @@ export function soffitOverStreets(
     for (const e of atlas.streets.edges) {
       const half = (e.width + e.sidewalk.left + e.sidewalk.right) / 2
       for (let i = 1; i < e.path.length; i++) {
-        if (segDist(a, b, e.path[i - 1], e.path[i]) <= half) {
+        if (segDist(a, b, e.path[i - 1], e.path[i]) <= half + l.crossSection.width / 2) {
           level = Math.max(level ?? -Infinity, e.level ?? 0)
           break
         }
@@ -165,7 +165,7 @@ const inPolygon = (p: P2, poly: readonly P2[]): boolean => {
 }
 
 /** Plan distance from segment a-b to a polygon; 0 when it meets or enters it. */
-function segmentPolygonDistance(a: P2, b: P2, poly: readonly P2[]): number {
+export function segmentPolygonDistance(a: P2, b: P2, poly: readonly P2[]): number {
   if (inPolygon(a, poly) || inPolygon(b, poly)) return 0
   let best = Infinity
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -195,7 +195,8 @@ export function stationApproach(
     const top = Math.max(...ys) + l.crossSection.height / 2
     for (const v of volumes) {
       if (bottom >= v.top || top <= v.bottom) continue
-      res.push({ linkId: l.id, kind: l.kind, volume: `${v.kind} ${v.id}`, distance: segmentPolygonDistance(a, b, v.footprint) })
+      const centerDistance = segmentPolygonDistance(a, b, v.footprint)
+      res.push({ linkId: l.id, kind: l.kind, volume: `${v.kind} ${v.id}`, distance: Math.max(0, centerDistance - l.crossSection.width / 2) })
     }
   }
   return res

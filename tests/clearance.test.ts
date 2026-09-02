@@ -11,6 +11,34 @@ function raisedRoadAtlas() {
   return atlas
 }
 
+/** A deck whose centerline misses a bridge while its carriageway clips the bridge edge. */
+function grazingDeckAtlas() {
+  const atlas = buildFixtureAtlas()
+  const target = generate(atlas, { seed: 'alpha' }).links.find((l) => l.kind === 'bridge')!
+  const a = target.path[0]
+  const b = target.path[target.path.length - 1]
+  const dx = b[0] - a[0]
+  const dz = b[2] - a[2]
+  const len = Math.hypot(dx, dz)
+  const dir: [number, number] = [dx / len, dz / len]
+  const normal: [number, number] = [-dir[1], dir[0]]
+  const midpoint: [number, number] = [(a[0] + b[0]) / 2, (a[2] + b[2]) / 2]
+  const offset = target.crossSection.width / 2 + 0.05
+  const center: [number, number] = [midpoint[0] + normal[0] * offset, midpoint[1] + normal[1] * offset]
+  const halfLength = Math.min(5, len / 4)
+  const from: [number, number] = [center[0] - dir[0] * halfLength, center[1] - dir[1] * halfLength]
+  const to: [number, number] = [center[0] + dir[0] * halfLength, center[1] + dir[1] * halfLength]
+  atlas.streets.nodes.push(
+    { id: 'grazing-a', position: from, edgeIds: ['grazing-deck'] },
+    { id: 'grazing-b', position: to, edgeIds: ['grazing-deck'] },
+  )
+  atlas.streets.edges.push({
+    id: 'grazing-deck', class: 'highway', from: 'grazing-a', to: 'grazing-b',
+    path: [from, to], width: 0.2, sidewalk: { left: 0, right: 0 }, level: 8,
+  })
+  return atlas
+}
+
 describe('clearance: a link flies over the street', () => {
   it('every bridge and AC tube clears the street it crosses', () => {
     const atlas = buildFixtureAtlas()
@@ -41,6 +69,13 @@ describe('clearance: a link flies over the street', () => {
       }
     }
     expect(seen).toBeGreaterThan(0)
+  })
+
+  it('a link edge that clips a deck clears it even when both centerlines miss', () => {
+    const atlas = grazingDeckAtlas()
+    const crossing = soffitOverStreets(atlas, generate(atlas, { seed: 'alpha' })).filter((x) => x.level === 8)
+    expect(crossing.length).toBeGreaterThan(0)
+    for (const c of crossing) expect(c.soffit).toBeGreaterThanOrEqual(8 + MIN_CROSSING_CLEARANCE)
   })
 
   it('a tunnel passes under the deck and under the street', () => {
