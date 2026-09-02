@@ -127,7 +127,7 @@ function catenary(a: V3, b: V3): V3[] {
 
 export const CROSS_SECTIONS: Record<LinkKind, CrossSection> = {
   bridge: { shape: 'rect', width: 4, height: 3.2 },
-  'ac-tube': { shape: 'rect', width: 1.6, height: 1.6 },
+  'ac-tube': { shape: 'rect', width: 2, height: 2.4 },
   wire: { shape: 'circle', width: 0.1, height: 0.1 },
   tunnel: { shape: 'rect', width: 3, height: 2.8 },
 }

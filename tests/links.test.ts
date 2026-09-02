@@ -50,6 +50,16 @@ describe('links', () => {
     expect(apA.height).toBeGreaterThan(diagonal!.crossSection.height)
   })
 
+  it('a link you walk inside has room to stand up in', () => {
+    const inside = out.links.filter((l) => l.walkable.inside)
+    expect(new Set(inside.map((l) => l.kind))).toEqual(new Set(['bridge', 'ac-tube', 'tunnel']))
+    for (const l of inside) {
+      expect(l.crossSection.height, `${l.kind} headroom`).toBeGreaterThanOrEqual(2.1)
+      expect(l.crossSection.width, `${l.kind} width`).toBeGreaterThanOrEqual(0.9)
+    }
+    for (const l of out.links.filter((x) => x.kind === 'wire')) expect(l.walkable.inside).toBe(false)
+  })
+
   it('walkable links appear in the walk graph as portal edges', () => {
     const linkEdges = out.networks.walk.edges.filter((e) => e.kind === 'link')
     const walkable = out.links.filter((l) => l.walkable.over || l.walkable.inside)

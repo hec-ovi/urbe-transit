@@ -1,5 +1,7 @@
 # Changelog
 
+0.6: an AC tube is 2.0 by 2.4 m, so the player it is walkable for can stand up inside it. The contract publishes the cross section of every link kind and holds every walkable-inside link to standing room.
+
 0.5: the movement networks carry height. Every lane and walk edge holds the level of the street it runs on, turn connections stay inside one level, and a node whose streets sit at different levels is a grade separation with no light on the deck. Rail lines ride at the level the blueprint gives them.
 
 0.4: aperture bases on one building admit a floor stack of its family's floor heights inside the parcel envelope, so exterior can always pin a floor to every base. A base that would leave no legal floor count is refused and the link takes the next one up.
