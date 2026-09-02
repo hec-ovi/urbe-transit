@@ -1,5 +1,7 @@
 # Changelog
 
+0.7: nothing this box builds enters a station. A link is refused where its solid overlaps a platform box, an entrance shaft or a platform passage, in plan and in height, so a bridge still flies over a platform at grade and a tunnel goes around a shaft instead of through it.
+
 0.6: an AC tube is 2.0 by 2.4 m, so the player it is walkable for can stand up inside it. The contract publishes the cross section of every link kind and holds every walkable-inside link to standing room.
 
 0.5: the movement networks carry height. Every lane and walk edge holds the level of the street it runs on, turn connections stay inside one level, and a node whose streets sit at different levels is a grade separation with no light on the deck. Rail lines ride at the level the blueprint gives them.

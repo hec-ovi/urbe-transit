@@ -1,5 +1,5 @@
 /**
- * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.4).
+ * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.8).
  * Units: meters. Ground plane XZ, +Y up; 2D points are [x, z]; heights along +Y.
  * Polygons: CCW rings, first point not repeated.
  */
@@ -125,6 +125,21 @@ export interface Station {
   entrances: Vec2[]
   /** Platform height: 0 at grade, -12 for a subway. Entrances stay at grade. */
   level?: number
+  /** Plan footprint of the platform. */
+  platform?: Polygon
+  /** Vertical extent of the platform box: floor and ceiling. */
+  box?: { bottom: number; top: number }
+  /** One per entrance, in entrance order; empty for a station at grade. */
+  shafts?: Shaft[]
+}
+
+/** The way down from an entrance to the platform: a vertical footprint plus its passage. */
+export interface Shaft {
+  footprint: Polygon
+  top: number
+  bottom: number
+  /** Platform-level link from the shaft foot to the platform; absent when the shaft lands on it. */
+  passage?: Polygon
 }
 
 export interface RailLine {

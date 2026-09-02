@@ -2,10 +2,10 @@
  * Deterministic fixture in the atlas blueprint shape (consumed subset).
  * A 4x3 street grid with a highway row on an 8 m deck, a road row, curved and straight streets, an alley with
  * buildings on both sides, three districts, facing building pairs for every link kind, and all
- * transit modes. The alley keeps a carriageway, which the 0.2 blueprints have and later ones
+ * transit modes with their station boxes and shafts. The alley keeps a carriageway, which the 0.2 blueprints have and later ones
  * drop, so both alley shapes stay covered; tests build the carriageway-less one from it.
  */
-import type { AtlasBlueprint, Crossing, Parcel, StreetEdge, StreetNode, Vec2 as V2 } from '../src/types/atlas'
+import type { AtlasBlueprint, Crossing, Parcel, Station, StreetEdge, StreetNode, Vec2 as V2 } from '../src/types/atlas'
 
 const COLS = [0, 120, 240, 360]
 const ROWS = [0, 120, 240]
@@ -160,6 +160,29 @@ function parcels(): Parcel[] {
   })
 }
 
+/** Rectangle centred on p, `w` across x and `d` across z. */
+function rect(p: V2, w: number, d: number): V2[] {
+  return [[p[0] - w / 2, p[1] - d / 2], [p[0] + w / 2, p[1] - d / 2], [p[0] + w / 2, p[1] + d / 2], [p[0] - w / 2, p[1] + d / 2]]
+}
+
+/**
+ * A station as blueprint 0.7 publishes it: a platform footprint with the vertical extent of its
+ * box, and, underground, one shaft per entrance running from the street down to the platform.
+ */
+function station(id: string, districtId: string, position: V2, entrances: V2[], underground: boolean): Station {
+  const box = underground ? { bottom: -12, top: -7 } : { bottom: 0, top: 3 }
+  const platform = rect(position, underground ? 60 : 80, underground ? 8 : 6)
+  const shafts = underground
+    ? entrances.map((e) => ({
+        footprint: rect(e, 3, 3),
+        top: 0,
+        bottom: box.bottom,
+        passage: rect([(e[0] + position[0]) / 2, (e[1] + position[1]) / 2], Math.max(3, Math.abs(e[0] - position[0])), Math.max(3, Math.abs(e[1] - position[1]))),
+      }))
+    : []
+  return { id, position, districtId, entrances, level: box.bottom, platform, box, shafts }
+}
+
 export function buildFixtureAtlas(): AtlasBlueprint {
   const ns = nodes()
   const es = edges(ns)
@@ -184,14 +207,14 @@ export function buildFixtureAtlas(): AtlasBlueprint {
         { id: 'bus1', stopIds: ['s1', 's3'], edgeIds: ['e4', 'e12'] },
       ],
       trainStations: [
-        { id: 't0', position: [60, 8], districtId: 'd2', entrances: [[60, 20]] },
-        { id: 't1', position: [300, 8], districtId: 'd2', entrances: [[300, 20]] },
+        station('t0', 'd2', [60, 8], [[60, 20]], false),
+        station('t1', 'd2', [300, 8], [[300, 20]], false),
       ],
       trainLines: [{ id: 'tr0', stationIds: ['t0', 't1'], path: [[60, 8], [300, 8]], underground: false }],
       subwayStations: [
-        { id: 'st0', position: [100, 100], districtId: 'd0', entrances: [[100, 111.5]] },
-        { id: 'st1', position: [250, 130], districtId: 'd0', entrances: [[250, 128.5]] },
-        { id: 'st2', position: [122, 245], districtId: 'd1', entrances: [[122, 245.25]] },
+        station('st0', 'd0', [100, 100], [[100, 111.5]], true),
+        station('st1', 'd0', [250, 130], [[250, 128.5]], true),
+        station('st2', 'd1', [122, 245], [[122, 245.25]], true),
       ],
       subwayLines: [{ id: 'sub0', stationIds: ['st0', 'st1', 'st2'], path: [[100, 100], [250, 130], [122, 245]], underground: true }],
     },

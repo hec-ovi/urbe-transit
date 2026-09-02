@@ -9,6 +9,7 @@ import { buildLinkGeometry, CROSS_SECTIONS } from './geometry'
 import type { BuildingIndex } from './buildings'
 import { castFacade, type FacadeHit } from './facades'
 import type { LinkRegistry } from './registry'
+import { linkSolid, StationVolumes } from './stations'
 
 /** Spacing of candidate anchor stations along a street, meters. */
 const ANCHOR_SPACING = 8
@@ -51,6 +52,7 @@ export class WirePlanner {
   private readonly limits: LinkLimits
   private readonly levels: number[]
   private readonly boxes = new Map<string, Box>()
+  private readonly stations: StationVolumes
 
   constructor(
     private readonly atlas: AtlasBlueprint,
@@ -62,6 +64,7 @@ export class WirePlanner {
     this.limits = params.links.wire
     this.levels = anchorLevels(this.limits)
     for (const e of atlas.streets.edges) this.boxes.set(e.id, bbox(e.path))
+    this.stations = new StationVolumes(atlas)
   }
 
   plan(rng: Rng): void {
@@ -162,6 +165,8 @@ export class WirePlanner {
       )
       if (!geo) continue
       if (!this.registry.fits(geo.apertureA) || !this.registry.fits(geo.apertureB)) continue
+      const solid = linkSolid(geo.path, CROSS_SECTIONS.wire.height)
+      if (this.stations.hits(solid.a, solid.b, solid.bottom, solid.top)) continue
       if (this.buildings.blocks(a.buildingId, b.buildingId, geo.path)) continue
       this.registry.add('wire', a.buildingId, b.buildingId, geo)
       return true

@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { generate } from '../src'
 import type { AtlasBlueprint } from '../src/types/atlas'
-import { linkGround, pinnedFloors, soffitOverStreets, straddledStreet, wireDensityPerClass } from './helpers'
+import { linkGround, pinnedFloors, soffitOverStreets, stationApproach, stationVolumes, straddledStreet, wireDensityPerClass } from './helpers'
 import { MIN_CROSSING_CLEARANCE } from '../src/links/clearance'
 import { admissibleFloors } from '../src/links/stack'
 
@@ -74,6 +74,14 @@ describe.skipIf(!present).each(SAMPLES)('atlas sample pipeline: %s', (name) => {
       expect(range, `${at} admit no stack at all`).not.toBeNull()
       expect(range!.hi, `${at} admit at most ${range!.hi} floors`).toBeGreaterThanOrEqual(parcel.envelope.minFloors)
       expect(range!.lo, `${at} need at least ${range!.lo} floors`).toBeLessThanOrEqual(parcel.envelope.maxFloors)
+    }
+  }, 120000)
+
+  it('keeps every link out of the platforms, shafts and passages', () => {
+    const volumes = stationVolumes(atlas)
+    if (volumes.length === 0) return
+    for (const m of stationApproach(atlas, out)) {
+      expect(m.distance, `${m.kind} ${m.linkId} in ${m.volume}`).toBeGreaterThan(0)
     }
   }, 120000)
 

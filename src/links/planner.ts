@@ -6,6 +6,7 @@ import type { ResolvedParams, FacingKindKey } from '../types/params'
 import type { ApertureKind, LinkKind } from '../types/output'
 import { buildLinkGeometry, CROSS_SECTIONS } from './geometry'
 import { StreetBands } from './clearance'
+import { linkSolid, StationVolumes } from './stations'
 import type { BuildingIndex } from './buildings'
 import type { LinkRegistry } from './registry'
 
@@ -48,6 +49,7 @@ interface Station {
 export class LinkPlanner {
   private readonly districtKind = new Map<string, DistrictKind>()
   private readonly bands: StreetBands
+  private readonly stations: StationVolumes
 
   constructor(
     private readonly atlas: AtlasBlueprint,
@@ -57,6 +59,7 @@ export class LinkPlanner {
   ) {
     for (const d of atlas.districts) this.districtKind.set(d.id, d.kind)
     this.bands = new StreetBands(atlas)
+    this.stations = new StationVolumes(atlas)
   }
 
   plan(key: FacingKindKey, kind: FacingKind, rng: Rng): void {
@@ -144,6 +147,8 @@ export class LinkPlanner {
         // The lower aperture base is the link's underside: the miter cut reaches its lowest there.
         if (Math.min(geo.apertureA.base, geo.apertureB.base) < floor - 1e-9) continue
         if (!this.registry.fits(geo.apertureA) || !this.registry.fits(geo.apertureB)) continue
+        const solid = linkSolid(geo.path, cross.height)
+        if (this.stations.hits(solid.a, solid.b, solid.bottom, solid.top)) continue
         if (kind !== 'tunnel' && this.buildings.blocks(c.a, c.b, geo.path)) continue
         this.registry.add(kind as LinkKind, c.a, c.b, geo)
         return true
