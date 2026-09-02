@@ -53,6 +53,10 @@ describe.skipIf(!present).each(SAMPLES)('atlas sample pipeline: %s', (name) => {
     for (const kind of ['bridge', 'ac-tube'] as const) {
       expect(out.links.filter((l) => l.kind === kind).length, `${kind} count`).toBeGreaterThan(0)
     }
+    // The preview draws one toggle per exported layer, so both kinds have to be in the manifest.
+    const ids = out.layers.map((l) => l.id)
+    expect(ids).toContain('links.bridges')
+    expect(ids).toContain('links.acTubes')
     const crossing = soffitOverStreets(atlas, out).filter((c) => c.level !== null)
     expect(crossing.length).toBeGreaterThan(0)
     for (const c of crossing) {
