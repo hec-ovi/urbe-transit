@@ -18,7 +18,7 @@ export function planLinks(
   rng: Rng,
 ): { links: Link[]; apertures: Aperture[]; refs: LinkRef[] } {
   const buildings = new BuildingIndex(atlas)
-  const registry = new LinkRegistry()
+  const registry = new LinkRegistry(buildings)
   const facing = new LinkPlanner(atlas, params, buildings, registry)
   const { bridges, acTubes, wires, tunnels } = params.toggles
 

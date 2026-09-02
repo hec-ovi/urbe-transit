@@ -1,5 +1,5 @@
 import type { AtlasBlueprint, StreetEdge } from '../src/types/atlas'
-import type { Link } from '../src/types/output'
+import type { Aperture, Link } from '../src/types/output'
 
 /** Independent face-plane math: unsigned distance of a world point from face `face` of a building. */
 export function facePlaneDistance(atlas: AtlasBlueprint, buildingId: string, face: number, p: [number, number, number]): number {
@@ -119,4 +119,14 @@ export function soffitOverStreets(
     res.push({ id: l.id, level, soffit: Math.min(base.get(l.a.apertureId)!, base.get(l.b.apertureId)!) })
   }
   return res
+}
+
+/** Floors each building must carry: one entry per aperture that cuts a hole, by building id. */
+export function pinnedFloors(out: { apertures: readonly Aperture[] }): Map<string, { base: number; height: number }[]> {
+  const byBuilding = new Map<string, { base: number; height: number }[]>()
+  for (const a of out.apertures) {
+    if (a.kind === 'wire-anchor') continue
+    byBuilding.set(a.buildingId, [...(byBuilding.get(a.buildingId) ?? []), { base: a.base, height: a.height }])
+  }
+  return byBuilding
 }

@@ -12,6 +12,7 @@ export interface Bounds {
 /** Faces, height and bounding circle per building, plus the shared obstruction test. */
 export class BuildingIndex {
   readonly parcels: readonly Parcel[]
+  private readonly parcelById = new Map<string, Parcel>()
   private readonly facesById = new Map<string, BuildingFaces>()
   private readonly heightById = new Map<string, number>()
   private readonly boundsById = new Map<string, Bounds>()
@@ -19,6 +20,7 @@ export class BuildingIndex {
   constructor(atlas: AtlasBlueprint) {
     this.parcels = atlas.parcels
     for (const p of atlas.parcels) {
+      this.parcelById.set(p.id, p)
       this.facesById.set(p.id, new BuildingFaces(p))
       const c: V2 = [
         p.footprint.reduce((s, v) => s + v[0], 0) / p.footprint.length,
@@ -27,6 +29,10 @@ export class BuildingIndex {
       this.boundsById.set(p.id, { c, r: Math.max(...p.footprint.map((v) => dist2(c, v))) })
     }
     for (const b of atlas.volumetric.buildings) this.heightById.set(b.parcelId, b.height)
+  }
+
+  parcel(id: string): Parcel {
+    return this.parcelById.get(id)!
   }
 
   faces(id: string): BuildingFaces {

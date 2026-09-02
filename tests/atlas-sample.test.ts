@@ -3,8 +3,9 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { generate } from '../src'
 import type { AtlasBlueprint } from '../src/types/atlas'
-import { linkGround, soffitOverStreets, straddledStreet, wireDensityPerClass } from './helpers'
+import { linkGround, pinnedFloors, soffitOverStreets, straddledStreet, wireDensityPerClass } from './helpers'
 import { MIN_CROSSING_CLEARANCE } from '../src/links/clearance'
+import { admissibleFloors } from '../src/links/stack'
 
 /**
  * Two-box pipeline check against every committed atlas sample, smallest to largest. Skipped only
@@ -56,6 +57,19 @@ describe.skipIf(!present).each(SAMPLES)('atlas sample pipeline: %s', (name) => {
     expect(crossing.length).toBeGreaterThan(0)
     for (const c of crossing) {
       expect(c.soffit - c.level!, `${c.id} over a street at ${c.level}`).toBeGreaterThanOrEqual(MIN_CROSSING_CLEARANCE)
+    }
+  }, 120000)
+
+  it('leaves every building a floor stack its envelope allows', () => {
+    const pinned = pinnedFloors(out)
+    expect(pinned.size).toBeGreaterThan(0)
+    for (const [id, bases] of pinned) {
+      const parcel = atlas.parcels.find((p) => p.id === id)!
+      const range = admissibleFloors(parcel, bases)
+      const at = `${id} ${parcel.type} in ${parcel.envelope.maxHeight} m: bases ${bases.map((b) => b.base.toFixed(2)).join(', ')}`
+      expect(range, `${at} admit no stack at all`).not.toBeNull()
+      expect(range!.hi, `${at} admit at most ${range!.hi} floors`).toBeGreaterThanOrEqual(parcel.envelope.minFloors)
+      expect(range!.lo, `${at} need at least ${range!.lo} floors`).toBeLessThanOrEqual(parcel.envelope.maxFloors)
     }
   }, 120000)
 
