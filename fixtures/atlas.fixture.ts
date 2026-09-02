@@ -86,10 +86,10 @@ function nodes(): StreetNode[] {
   for (let r = 0; r < ROWS.length; r++) {
     for (let c = 0; c < COLS.length; c++) {
       const idx = r * COLS.length + c
-      out.push({ id: `n${idx}`, position: [COLS[c], ROWS[r]], edgeIds: [] })
+      out.push({ id: `n${idx}`, position: [COLS[c], ROWS[r]], edgeIds: [], connections: [] })
     }
   }
-  for (const p of EXTRA_NODES) out.push({ id: `n${out.length}`, position: p, edgeIds: [] })
+  for (const p of EXTRA_NODES) out.push({ id: `n${out.length}`, position: p, edgeIds: [], connections: [] })
   for (const e of EDGE_SPECS) {
     out[e.from].edgeIds.push(e.id)
     out[e.to].edgeIds.push(e.id)
@@ -98,16 +98,36 @@ function nodes(): StreetNode[] {
 }
 
 function edges(ns: StreetNode[]): StreetEdge[] {
-  return EDGE_SPECS.map((s) => ({
-    id: s.id,
-    class: s.cls,
-    from: `n${s.from}`,
-    to: `n${s.to}`,
-    path: s.path ?? [ns[s.from].position, ns[s.to].position],
-    width: s.width,
-    sidewalk: { left: s.sw, right: s.sw },
-    level: s.level ?? 0,
-  }))
+  return EDGE_SPECS.map((s) => {
+    const path = s.path ?? [ns[s.from].position, ns[s.to].position]
+    const length = path.slice(1).reduce((total, point, i) => total + Math.hypot(point[0] - path[i][0], point[1] - path[i][1]), 0)
+    const level = s.level ?? 0
+    return {
+      id: s.id,
+      class: s.cls,
+      from: `n${s.from}`,
+      to: `n${s.to}`,
+      path,
+      width: s.width,
+      sidewalk: { left: s.sw, right: s.sw },
+      level,
+      elevationProfile: [{ distance: 0, level }, { distance: length, level }],
+    }
+  })
+}
+
+/** Partition incident edges by their exact endpoint height, as atlas publishes it. */
+function connectNodes(ns: StreetNode[], es: StreetEdge[]): void {
+  const byId = new Map(es.map((edge) => [edge.id, edge]))
+  for (const node of ns) {
+    const groups = new Map<number, string[]>()
+    for (const edgeId of node.edgeIds) {
+      const edge = byId.get(edgeId)!
+      const level = edge.from === node.id ? edge.elevationProfile[0].level : edge.elevationProfile.at(-1)!.level
+      groups.set(level, [...(groups.get(level) ?? []), edgeId])
+    }
+    node.connections = [...groups].sort(([a], [b]) => a - b).map(([level, edgeIds]) => ({ level, edgeIds }))
+  }
 }
 
 /** Crossing segments across each sidewalked approach of the four inner intersections. */
@@ -180,12 +200,36 @@ function station(id: string, districtId: string, position: V2, entrances: V2[], 
         passage: rect([(e[0] + position[0]) / 2, (e[1] + position[1]) / 2], Math.max(3, Math.abs(e[0] - position[0])), Math.max(3, Math.abs(e[1] - position[1]))),
       }))
     : []
-  return { id, position, districtId, entrances, level: box.bottom, platform, box, shafts }
+  const accessPaths = underground
+    ? entrances.map((entrance, entranceIndex) => {
+        const foot: [number, number, number] = [entrance[0], box.bottom, entrance[1]]
+        const handoff: [number, number, number] = [position[0], box.bottom, position[1]]
+        return {
+          entranceIndex,
+          segments: [
+            {
+              kind: 'stairs' as const,
+              path: [
+                [entrance[0], 0, entrance[1]] as [number, number, number],
+                [entrance[0] + 1, -3, entrance[1]] as [number, number, number],
+                [entrance[0] - 1, -6, entrance[1]] as [number, number, number],
+                [entrance[0] + 1, -9, entrance[1]] as [number, number, number],
+                foot,
+              ],
+            },
+            { kind: 'passage' as const, path: [foot, handoff] },
+          ],
+          platformHandoff: handoff,
+        }
+      })
+    : []
+  return { id, position, districtId, entrances, level: box.bottom, platform, box, shafts, accessPaths }
 }
 
 export function buildFixtureAtlas(): AtlasBlueprint {
   const ns = nodes()
   const es = edges(ns)
+  connectNodes(ns, es)
   return {
     meta: { seed: 'fixture-city-1', bounds: { min: [0, 0], max: [380, 300] } },
     districts: [
@@ -210,13 +254,13 @@ export function buildFixtureAtlas(): AtlasBlueprint {
         station('t0', 'd2', [60, 8], [[60, 20]], false),
         station('t1', 'd2', [300, 8], [[300, 20]], false),
       ],
-      trainLines: [{ id: 'tr0', stationIds: ['t0', 't1'], path: [[60, 8], [300, 8]], underground: false }],
+      trainLines: [{ id: 'tr0', stationIds: ['t0', 't1'], path: [[60, 8], [300, 8]], underground: false, level: 0, width: 4 }],
       subwayStations: [
         station('st0', 'd0', [100, 100], [[100, 111.5]], true),
         station('st1', 'd0', [250, 130], [[250, 128.5]], true),
         station('st2', 'd1', [122, 245], [[122, 245.25]], true),
       ],
-      subwayLines: [{ id: 'sub0', stationIds: ['st0', 'st1', 'st2'], path: [[100, 100], [250, 130], [122, 245]], underground: true }],
+      subwayLines: [{ id: 'sub0', stationIds: ['st0', 'st1', 'st2'], path: [[100, 100], [250, 130], [122, 245]], underground: true, level: -12, width: 6 }],
     },
     volumetric: {
       buildings: PARCEL_SPECS.map((s) => {

@@ -1,6 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import { generate, signalStateAt } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
+import type { AtlasBlueprint } from '../src/types/atlas'
+
+function rebuildConnections(atlas: AtlasBlueprint): void {
+  const edges = new Map(atlas.streets.edges.map((edge) => [edge.id, edge]))
+  for (const node of atlas.streets.nodes) {
+    const groups = new Map<number, string[]>()
+    for (const edgeId of node.edgeIds) {
+      const edge = edges.get(edgeId)!
+      const level = edge.from === node.id ? edge.elevationProfile[0].level : edge.elevationProfile.at(-1)!.level
+      groups.set(level, [...(groups.get(level) ?? []), edgeId])
+    }
+    node.connections = [...groups].sort(([a], [b]) => a - b).map(([level, edgeIds]) => ({ level, edgeIds }))
+  }
+}
+
+function rampAtlas(): AtlasBlueprint {
+  const atlas = buildFixtureAtlas()
+  const ramp = atlas.streets.edges.find((edge) => edge.id === 'e0')!
+  ramp.elevationProfile = [
+    { distance: 0, level: 0 },
+    { distance: 60, level: 8 },
+    { distance: 120, level: 8 },
+  ]
+  rebuildConnections(atlas)
+  return atlas
+}
 
 const atlas = buildFixtureAtlas()
 const out = generate(atlas, { seed: 'alpha' })
@@ -99,6 +125,18 @@ describe('road network', () => {
     }
     expect(perEdge.get('e1')!).toBeGreaterThan(perEdge.get('e7')!)
   })
+
+  it('uses node connection groups even when disconnected edges share one height', () => {
+    const separated = buildFixtureAtlas()
+    const node = separated.streets.nodes.find((candidate) => candidate.id === 'n5')!
+    node.connections = node.edgeIds.map((edgeId) => ({ level: 0, edgeIds: [edgeId] }))
+    separated.transit.busRoutes = []
+    const separatedRoad = generate(separated, { seed: 'topology' }).networks.road
+    const laneById = new Map(separatedRoad.lanes.map((lane) => [lane.id, lane]))
+    for (const lane of separatedRoad.lanes.filter((candidate) => candidate.edgeId === 'e3')) {
+      expect(lane.next.some((next) => laneById.get(next.laneId)?.edgeId === 'e4')).toBe(false)
+    }
+  })
 })
 
 describe('levels: the deck flies over, it does not join', () => {
@@ -109,6 +147,18 @@ describe('levels: the deck flies over, it does not join', () => {
     expect(onDeck.length).toBeGreaterThan(0)
     for (const l of road.lanes) expect(l.level, l.id).toBe(levelOf.get(l.edgeId))
     for (const e of walk.edges) expect(Number.isFinite(e.level), e.id).toBe(true)
+  })
+
+  it('preserves every ramp breakpoint in exact 3D lane paths', () => {
+    const ramp = generate(rampAtlas(), { seed: 'ramp' })
+    const lanes = ramp.networks.road.lanes.filter((lane) => lane.edgeId === 'e0')
+    expect(lanes.length).toBeGreaterThan(0)
+    for (const lane of lanes) {
+      expect(lane.path).toEqual(lane.path3.map((point) => [point[0], point[2]]))
+      expect(Math.min(...lane.path3.map((point) => point[1]))).toBeLessThan(8)
+      expect(Math.max(...lane.path3.map((point) => point[1]))).toBe(8)
+      expect(lane.path3.some((point) => Math.abs(point[0] - 60) < 1e-9 && point[1] === 8)).toBe(true)
+    }
   })
 
   it('no turn connection drops from one level to another', () => {
@@ -138,8 +188,9 @@ describe('levels: the deck flies over, it does not join', () => {
     expect(linkEdges.length).toBeGreaterThan(0)
     for (const e of linkEdges) {
       const link = byLink.get(e.linkId!)!
-      const low = Math.min(...link.path.map((p) => p[1])) - link.crossSection.height / 2
-      expect(e.level, e.id).toBeCloseTo(low, 9)
+      const surface = link.path.map((p) => p[1] - link.crossSection.height / 2)
+      expect(e.path3.map((p) => p[1]), e.id).toEqual(surface)
+      expect(e.level, e.id).toBeCloseTo(Math.max(...surface), 9)
     }
   })
 })

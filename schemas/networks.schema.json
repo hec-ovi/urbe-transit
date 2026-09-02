@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urbe/connections/networks",
   "title": "Networks",
-  "description": "All movement networks. Units meters, ground plane XZ, +Y up: 2D points are [x,z], 3D points [x,y,z]. One polyline-lane model, instantiated for sidewalks (walk), roads (lanes) and air corridors; transit rides on its own shapes with frequency timetables. Lanes and walk edges carry the level of the street they run on, so a highway deck rides at 8 m; a node whose streets sit at different levels is a grade separation, never a turn. Signal state at time t is closed-form: phase containing (t + offset) mod cycle; state strings hold one char per controlled link (G=go, r=stop, y=clearing).",
+  "description": "All movement networks. Units meters, ground plane XZ, +Y up: 2D points are [x,z], 3D points [x,y,z]. Walk edges and road lanes publish exact path3 geometry including every elevation breakpoint; path is its compatibility projection onto XZ. Atlas node connection groups are authoritative for transfers. Signal state at time t is closed-form: phase containing (t + offset) mod cycle; state strings hold one char per controlled link (G=go, r=stop, y=clearing).",
   "type": "object",
   "required": ["walk", "road", "signals", "transit", "air"],
   "properties": {
@@ -14,12 +14,13 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "x", "z", "kind"],
+            "required": ["id", "x", "y", "z", "kind"],
             "properties": {
               "id": { "type": "string" },
               "x": { "type": "number" },
+              "y": { "type": "number", "description": "exact surface height" },
               "z": { "type": "number" },
-              "kind": { "enum": ["sidewalk", "corner", "crossing-end", "stop", "station", "entry", "link-portal"] },
+              "kind": { "enum": ["sidewalk", "corner", "crossing-end", "stop", "station", "station-entrance", "station-access", "station-handoff", "entry", "link-portal"] },
               "ref": { "type": "string", "description": "stop/station/parcel/link id this node serves, by kind" }
             }
           }
@@ -28,17 +29,20 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "from", "to", "kind", "width", "path", "level"],
+            "required": ["id", "from", "to", "kind", "width", "path", "path3", "level"],
             "properties": {
               "id": { "type": "string" },
               "from": { "type": "string" },
               "to": { "type": "string" },
-              "kind": { "enum": ["sidewalk", "crossing", "access", "link"] },
+              "kind": { "enum": ["sidewalk", "crossing", "access", "stairs", "passage", "platform", "link"] },
               "width": { "type": "number" },
-              "path": { "$ref": "#/$defs/path2" },
-              "level": { "type": "number", "description": "height of the surface walked on: 0 at grade, 8 on a highway deck; on a link edge the link's low end, where the link's own 3D path is the exact ride" },
+              "path": { "$ref": "#/$defs/path2", "description": "compatibility projection of path3 onto XZ" },
+              "path3": { "$ref": "#/$defs/path3", "description": "authoritative walking surface, including ramps and station stairs" },
+              "level": { "type": "number", "description": "maximum path height, retained for flat-path consumers" },
               "signal": { "$ref": "#/$defs/signalRef", "description": "crossings only: walk is legal while state char is G" },
-              "linkId": { "type": "string", "description": "kind link only: the inter-building link walked over or through" }
+              "linkId": { "type": "string", "description": "kind link only: the inter-building link walked over or through" },
+              "stationId": { "type": "string", "description": "station access and platform edges only" },
+              "accessIndex": { "type": "integer", "minimum": 0, "description": "atlas station access path index" }
             }
           }
         }
@@ -52,25 +56,27 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "edgeId", "index", "speed", "width", "path", "next", "level"],
+            "required": ["id", "edgeId", "index", "speed", "width", "path", "path3", "next", "level"],
             "properties": {
               "id": { "type": "string" },
               "edgeId": { "type": "string", "description": "atlas street edge" },
               "index": { "type": "integer", "description": "0 = rightmost in driving direction" },
               "speed": { "type": "number", "description": "m/s limit" },
               "width": { "type": "number" },
-              "path": { "$ref": "#/$defs/path2", "description": "lane centerline in driving direction" },
-              "level": { "type": "number", "description": "height of the carriageway: 0 at grade, 8 on a highway deck; a turn connection never joins two levels" },
+              "path": { "$ref": "#/$defs/path2", "description": "lane centerline projection in driving direction" },
+              "path3": { "$ref": "#/$defs/path3", "description": "authoritative lane centerline including every atlas elevation breakpoint" },
+              "level": { "type": "number", "description": "maximum lane height, retained for flat-path consumers" },
               "allow": { "type": "array", "items": { "enum": ["car", "bus"] }, "description": "default all" },
               "next": {
                 "type": "array",
                 "items": {
                   "type": "object",
-                  "required": ["laneId", "turn", "via"],
+                  "required": ["laneId", "turn", "via", "via3"],
                   "properties": {
                     "laneId": { "type": "string" },
                     "turn": { "enum": ["s", "l", "r", "t"] },
                     "via": { "$ref": "#/$defs/path2", "description": "curve through the intersection" },
+                    "via3": { "$ref": "#/$defs/path3", "description": "authoritative turn curve at the atlas connection-group height" },
                     "signal": { "$ref": "#/$defs/signalRef" }
                   }
                 }

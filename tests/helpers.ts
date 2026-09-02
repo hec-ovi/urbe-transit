@@ -1,5 +1,6 @@
 import type { AtlasBlueprint, StreetEdge } from '../src/types/atlas'
 import type { Aperture, Link } from '../src/types/output'
+import { StreetBands } from '../src/links/clearance'
 
 /** Independent face-plane math: unsigned distance of a world point from face `face` of a building. */
 export function facePlaneDistance(atlas: AtlasBlueprint, buildingId: string, face: number, p: [number, number, number]): number {
@@ -102,20 +103,12 @@ export function soffitOverStreets(
   out: { links: readonly Link[]; apertures: readonly { id: string; base: number }[] },
 ): { id: string; level: number | null; soffit: number }[] {
   const base = new Map(out.apertures.map((a) => [a.id, a.base]))
+  const bands = new StreetBands(atlas)
   const res: { id: string; level: number | null; soffit: number }[] = []
   for (const l of out.links) {
     if (l.kind !== 'bridge' && l.kind !== 'ac-tube') continue
     const [a, b] = linkGround(l)
-    let level: number | null = null
-    for (const e of atlas.streets.edges) {
-      const half = (e.width + e.sidewalk.left + e.sidewalk.right) / 2
-      for (let i = 1; i < e.path.length; i++) {
-        if (segDist(a, b, e.path[i - 1], e.path[i]) <= half + l.crossSection.width / 2) {
-          level = Math.max(level ?? -Infinity, e.level ?? 0)
-          break
-        }
-      }
-    }
+    const level = bands.levelUnder(a, b, l.crossSection.width / 2)
     res.push({ id: l.id, level, soffit: Math.min(base.get(l.a.apertureId)!, base.get(l.b.apertureId)!) })
   }
   return res

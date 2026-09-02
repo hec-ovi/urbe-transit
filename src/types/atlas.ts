@@ -1,10 +1,11 @@
 /**
- * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.8).
+ * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.13.2).
  * Units: meters. Ground plane XZ, +Y up; 2D points are [x, z]; heights along +Y.
  * Polygons: CCW rings, first point not repeated.
  */
 
 export type Vec2 = [x: number, z: number]
+export type Vec3 = [x: number, y: number, z: number]
 export type Polygon = Vec2[]
 export type Polyline = Vec2[]
 
@@ -56,6 +57,18 @@ export interface StreetNode {
   id: string
   position: Vec2
   edgeIds: string[]
+  /** Exact transfer groups at this node. Edges in different groups do not meet. */
+  connections: StreetConnection[]
+}
+
+export interface StreetConnection {
+  level: number
+  edgeIds: string[]
+}
+
+export interface ElevationPoint {
+  distance: number
+  level: number
 }
 
 export interface StreetEdge {
@@ -69,8 +82,10 @@ export interface StreetEdge {
   width: number
   /** Per side, 0 = none. Left/right relative to path direction. */
   sidewalk: { left: number; right: number }
-  /** Surface height above the ground plane: 0 at grade, 8 on a highway deck. Absent reads as 0. */
-  level?: number
+  /** Maximum surface height above the ground plane. */
+  level: number
+  /** Exact height knots measured along path from `from` to `to`. */
+  elevationProfile: ElevationPoint[]
 }
 
 export interface Crossing {
@@ -124,13 +139,26 @@ export interface Station {
   districtId: string
   entrances: Vec2[]
   /** Platform height: 0 at grade, -12 for a subway. Entrances stay at grade. */
-  level?: number
+  level: number
   /** Plan footprint of the platform. */
-  platform?: Polygon
+  platform: Polygon
   /** Vertical extent of the platform box: floor and ceiling. */
-  box?: { bottom: number; top: number }
+  box: { bottom: number; top: number }
   /** One per entrance, in entrance order; empty for a station at grade. */
-  shafts?: Shaft[]
+  shafts: Shaft[]
+  /** One exact 3D route per underground entrance, in entrance order. */
+  accessPaths: StationAccessPath[]
+}
+
+export interface StationAccessPath {
+  entranceIndex: number
+  segments: StationAccessSegment[]
+  platformHandoff: Vec3
+}
+
+export interface StationAccessSegment {
+  kind: 'stairs' | 'passage'
+  path: Vec3[]
 }
 
 /** The way down from an entrance to the platform: a vertical footprint plus its passage. */
@@ -139,7 +167,7 @@ export interface Shaft {
   top: number
   bottom: number
   /** Platform-level link from the shaft foot to the platform; absent when the shaft lands on it. */
-  passage?: Polygon
+  passage: Polygon
 }
 
 export interface RailLine {
@@ -147,8 +175,10 @@ export interface RailLine {
   stationIds: string[]
   path: Polyline
   underground: boolean
-  /** Track height: 0 at grade, -12 for a subway. Absent reads as the mode default. */
-  level?: number
+  /** Track height: 0 at grade, -12 for a subway. */
+  level: number
+  /** Full reserved track or tunnel width. */
+  width: number
 }
 
 export interface BuildingVolume {

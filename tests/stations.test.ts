@@ -15,7 +15,19 @@ const rect = (p: Vec2, w: number, d: number): Vec2[] => [
 function shaftOnCorridor(): AtlasBlueprint {
   const atlas = buildFixtureAtlas()
   const st = atlas.transit.subwayStations[1]
-  st.shafts = [...(st.shafts ?? []), { footprint: rect(CORRIDOR, 6, 6), top: 0, bottom: -12 }]
+  st.entrances.push(CORRIDOR)
+  st.shafts = [...st.shafts, { footprint: rect(CORRIDOR, 6, 6), top: 0, bottom: -12, passage: [] }]
+  const entrance = st.entrances.at(-1)!
+  const foot: [number, number, number] = [entrance[0], -12, entrance[1]]
+  const handoff: [number, number, number] = [st.position[0], -12, st.position[1]]
+  st.accessPaths = [...st.accessPaths, {
+    entranceIndex: st.entrances.length - 1,
+    segments: [
+      { kind: 'stairs', path: [[entrance[0], 0, entrance[1]], [entrance[0] + 1, -6, entrance[1]], foot] },
+      { kind: 'passage', path: [foot, handoff] },
+    ],
+    platformHandoff: handoff,
+  }]
   return atlas
 }
 
@@ -39,10 +51,23 @@ function shaftOnTunnelEdge(): AtlasBlueprint {
   const mid: Vec2 = [(a[0] + b[0]) / 2, (a[2] + b[2]) / 2]
   const offset = target.crossSection.width / 2 + 0.05
   const center: Vec2 = [mid[0] - (dz / len) * offset, mid[1] + (dx / len) * offset]
-  atlas.transit.subwayStations[0].shafts = [
-    ...(atlas.transit.subwayStations[0].shafts ?? []),
-    { footprint: rect(center, 0.2, 0.2), top: 0, bottom: -12 },
+  const station = atlas.transit.subwayStations[0]
+  station.entrances.push(center)
+  station.shafts = [
+    ...station.shafts,
+    { footprint: rect(center, 0.2, 0.2), top: 0, bottom: -12, passage: [] },
   ]
+  const index = station.entrances.length - 1
+  const foot: [number, number, number] = [center[0], -12, center[1]]
+  const handoff: [number, number, number] = [station.position[0], -12, station.position[1]]
+  station.accessPaths.push({
+    entranceIndex: index,
+    segments: [
+      { kind: 'stairs', path: [[center[0], 0, center[1]], [center[0] + 0.1, -6, center[1]], foot] },
+      { kind: 'passage', path: [foot, handoff] },
+    ],
+    platformHandoff: handoff,
+  })
   return atlas
 }
 
@@ -88,5 +113,38 @@ describe('station volumes are kept clear', () => {
     const withPlatform = throughCorridor(generate(platformOnCorridor(), { seed: 'alpha' }))
     expect(base).toBeGreaterThan(0)
     expect(withPlatform).toBe(base)
+  })
+})
+
+describe('station access joins the walk network in 3D', () => {
+  it('copies every subway stair and passage path exactly and joins its endpoints', () => {
+    const atlas = buildFixtureAtlas()
+    const walk = generate(atlas, { seed: 'access' }).networks.walk
+    const nodes = new Map(walk.nodes.map((node) => [node.id, node]))
+    for (const station of atlas.transit.subwayStations) {
+      const center = walk.nodes.find((node) => node.kind === 'station' && node.ref === station.id)!
+      expect([center.x, center.y, center.z]).toEqual([station.position[0], station.level, station.position[1]])
+      for (const access of station.accessPaths) {
+        const edges = walk.edges.filter((edge) => edge.stationId === station.id && edge.accessIndex === access.entranceIndex)
+        const accessEdges = edges.filter((edge) => edge.kind === 'stairs' || edge.kind === 'passage')
+        expect(accessEdges.map((edge) => edge.kind)).toEqual(access.segments.map((segment) => segment.kind))
+        expect(accessEdges.map((edge) => edge.path3)).toEqual(access.segments.map((segment) => segment.path))
+        for (let i = 1; i < accessEdges.length; i++) expect(accessEdges[i - 1].to).toBe(accessEdges[i].from)
+        const first = nodes.get(accessEdges[0].from)!
+        const last = nodes.get(accessEdges.at(-1)!.to)!
+        expect([first.x, first.y, first.z]).toEqual(access.segments[0].path[0])
+        expect([last.x, last.y, last.z]).toEqual(access.platformHandoff)
+        expect(edges.some((edge) => edge.kind === 'platform' && edge.from === last.id && edge.to === center.id)).toBe(true)
+      }
+    }
+  })
+
+  it('rejects an access path whose segments do not meet', () => {
+    const atlas = buildFixtureAtlas()
+    const passage = atlas.transit.subwayStations[0].accessPaths[0].segments[1]
+    passage.path[0] = [passage.path[0][0] + 1, passage.path[0][1], passage.path[0][2]]
+    expect(() => generate(atlas, { seed: 'broken-access' })).toThrowError(
+      expect.objectContaining({ code: 'E_ATLAS_INVALID', path: expect.stringContaining('accessPaths') }),
+    )
   })
 })

@@ -2,6 +2,33 @@ import { describe, expect, it } from 'vitest'
 import { generate, transitVehiclesAt } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
 import { distToPath } from './helpers'
+import type { AtlasBlueprint } from '../src/types/atlas'
+
+function atlasWithRampBus(): AtlasBlueprint {
+  const atlas = buildFixtureAtlas()
+  const ramp = atlas.streets.edges.find((edge) => edge.id === 'e0')!
+  ramp.elevationProfile = [
+    { distance: 0, level: 0 },
+    { distance: 60, level: 8 },
+    { distance: 120, level: 8 },
+  ]
+  const edges = new Map(atlas.streets.edges.map((edge) => [edge.id, edge]))
+  for (const node of atlas.streets.nodes) {
+    const groups = new Map<number, string[]>()
+    for (const edgeId of node.edgeIds) {
+      const edge = edges.get(edgeId)!
+      const level = edge.from === node.id ? edge.elevationProfile[0].level : edge.elevationProfile.at(-1)!.level
+      groups.set(level, [...(groups.get(level) ?? []), edgeId])
+    }
+    node.connections = [...groups].map(([level, edgeIds]) => ({ level, edgeIds }))
+  }
+  atlas.transit.busStops = [
+    { id: 'ramp-low', edgeId: 'e0', position: [20, 0], districtId: 'd2' },
+    { id: 'ramp-high', edgeId: 'e0', position: [100, 0], districtId: 'd2' },
+  ]
+  atlas.transit.busRoutes = [{ id: 'ramp-bus', stopIds: ['ramp-low', 'ramp-high'], edgeIds: ['e0'] }]
+  return atlas
+}
 
 const atlas = buildFixtureAtlas()
 const out = generate(atlas, { seed: 'alpha' })
@@ -59,6 +86,15 @@ describe('transit routes', () => {
       if (r.kind === 'subway') for (const y of ys) expect(y).toBeLessThan(0)
       if (r.kind === 'bus') for (const y of ys) expect(y).toBe(0)
     }
+  })
+
+  it('keeps a bus on the exact street ramp instead of flattening its route', () => {
+    const rampRoutes = generate(atlasWithRampBus(), { seed: 'ramp' }).networks.transit.routes
+    const bus = rampRoutes.find((route) => route.kind === 'bus')!
+    expect(new Set(bus.shape.map((point) => point[1]))).toEqual(new Set([0, 8]))
+    expect(bus.stops[0].y).toBeCloseTo(20 * (8 / 60), 9)
+    expect(bus.stops[1].y).toBe(8)
+    expect(bus.shape.some((point) => point[0] === 60 && point[1] === 8)).toBe(true)
   })
 })
 

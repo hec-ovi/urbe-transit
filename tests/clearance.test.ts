@@ -3,11 +3,43 @@ import { generate } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
 import { MIN_CROSSING_CLEARANCE } from '../src/links/clearance'
 import { soffitOverStreets } from './helpers'
+import type { AtlasBlueprint } from '../src/types/atlas'
+
+function rebuildConnections(atlas: AtlasBlueprint): void {
+  const edges = new Map(atlas.streets.edges.map((edge) => [edge.id, edge]))
+  for (const node of atlas.streets.nodes) {
+    const groups = new Map<number, string[]>()
+    for (const edgeId of node.edgeIds) {
+      const edge = edges.get(edgeId)!
+      const level = edge.from === node.id ? edge.elevationProfile[0].level : edge.elevationProfile.at(-1)!.level
+      groups.set(level, [...(groups.get(level) ?? []), edgeId])
+    }
+    node.connections = [...groups].map(([level, edgeIds]) => ({ level, edgeIds }))
+  }
+}
 
 /** The fixture road between the two facing corpo towers, put on a deck like a highway. */
 function raisedRoadAtlas() {
   const atlas = buildFixtureAtlas()
-  atlas.streets.edges.find((e) => e.id === 'e4')!.level = 8
+  const edge = atlas.streets.edges.find((e) => e.id === 'e4')!
+  edge.level = 8
+  edge.elevationProfile = edge.elevationProfile.map((knot) => ({ ...knot, level: 8 }))
+  rebuildConnections(atlas)
+  atlas.transit.busRoutes = atlas.transit.busRoutes.filter((route) => !route.edgeIds.includes(edge.id))
+  return atlas
+}
+
+/** A rising road under p0-p1, with only enough building height for the local ramp clearance. */
+function rampCrossingAtlas(flat: boolean): AtlasBlueprint {
+  const atlas = buildFixtureAtlas()
+  const edge = atlas.streets.edges.find((candidate) => candidate.id === 'e4')!
+  edge.level = 8
+  edge.elevationProfile = flat
+    ? [{ distance: 0, level: 8 }, { distance: 120, level: 8 }]
+    : [{ distance: 0, level: 0 }, { distance: 120, level: 8 }]
+  rebuildConnections(atlas)
+  atlas.transit.busRoutes = []
+  for (const id of ['p0', 'p1']) atlas.volumetric.buildings.find((building) => building.parcelId === id)!.height = 17.5
   return atlas
 }
 
@@ -29,12 +61,14 @@ function grazingDeckAtlas() {
   const from: [number, number] = [center[0] - dir[0] * halfLength, center[1] - dir[1] * halfLength]
   const to: [number, number] = [center[0] + dir[0] * halfLength, center[1] + dir[1] * halfLength]
   atlas.streets.nodes.push(
-    { id: 'grazing-a', position: from, edgeIds: ['grazing-deck'] },
-    { id: 'grazing-b', position: to, edgeIds: ['grazing-deck'] },
+    { id: 'grazing-a', position: from, edgeIds: ['grazing-deck'], connections: [{ level: 8, edgeIds: ['grazing-deck'] }] },
+    { id: 'grazing-b', position: to, edgeIds: ['grazing-deck'], connections: [{ level: 8, edgeIds: ['grazing-deck'] }] },
   )
+  const length = Math.hypot(to[0] - from[0], to[1] - from[1])
   atlas.streets.edges.push({
     id: 'grazing-deck', class: 'highway', from: 'grazing-a', to: 'grazing-b',
     path: [from, to], width: 0.2, sidewalk: { left: 0, right: 0 }, level: 8,
+    elevationProfile: [{ distance: 0, level: 8 }, { distance: length, level: 8 }],
   })
   return atlas
 }
@@ -69,6 +103,21 @@ describe('clearance: a link flies over the street', () => {
       }
     }
     expect(seen).toBeGreaterThan(0)
+  })
+
+  it('uses the local ramp elevation under the complete link width', () => {
+    const params = { seed: 'local-ramp', links: { bridge: { minBase: 4, density: 1 } } }
+    const risingAtlas = rampCrossingAtlas(false)
+    const rising = generate(risingAtlas, params)
+    const target = rising.links.find((link) => link.kind === 'bridge' && new Set([link.a.buildingId, link.b.buildingId]).has('p0') && new Set([link.a.buildingId, link.b.buildingId]).has('p1'))
+    expect(target).toBeDefined()
+    const metric = soffitOverStreets(risingAtlas, rising).find((entry) => entry.id === target!.id)!
+    expect(metric.level).toBeGreaterThan(0)
+    expect(metric.level).toBeLessThan(8)
+    expect(metric.soffit).toBeGreaterThanOrEqual(metric.level! + MIN_CROSSING_CLEARANCE)
+
+    const flat = generate(rampCrossingAtlas(true), params)
+    expect(flat.links.some((link) => link.kind === 'bridge' && new Set([link.a.buildingId, link.b.buildingId]).has('p0') && new Set([link.a.buildingId, link.b.buildingId]).has('p1'))).toBe(false)
   })
 
   it('a link edge that clips a deck clears it even when both centerlines miss', () => {

@@ -5,6 +5,7 @@ import type { AtlasBlueprint, StreetClass } from '../types/atlas'
 import type { Lane, LaneConnection } from '../types/output'
 import { StreetIndex, heading, wrap180 } from './street-util'
 import type { SignalIndex } from './signals'
+import { liftStreetPath } from './elevation'
 
 /** Alleys are pedestrian: no car lanes at all. */
 const LANES_PER_DIR: Record<StreetClass, number> = { alley: 0, street: 1, road: 2, highway: 3 }
@@ -51,8 +52,10 @@ export class RoadBuilder {
         const trimmed = trimPolyline(offsetPath, this.streets.setback(startNode), this.streets.setback(endNode))
         if (trimmed.length < 2) continue
         const id = `${edgeId}${dir}${i}`
+        const path3 = liftStreetPath(e, trimmed)
         const lane: Lane = {
-          id, edgeId, index: i, speed: SPEED[e.class], width: laneWidth, path: trimmed, next: [], level: e.level ?? 0,
+          id, edgeId, index: i, speed: SPEED[e.class], width: laneWidth,
+          path: path3.map((point) => [point[0], point[2]]), path3, next: [], level: Math.max(...path3.map((point) => point[1])),
           ...(i + 1 < perDir ? { left: { laneId: `${edgeId}${dir}${i + 1}`, change: true } } : {}),
           ...(i > 0 ? { right: { laneId: `${edgeId}${dir}${i - 1}`, change: true } } : {}),
         }
@@ -72,8 +75,8 @@ export class RoadBuilder {
         const inDir = norm2(sub2(inEnd, inLane.path[inLane.path.length - 2]))
         for (const outLane of depart) {
           if (outLane.edgeId === inLane.edgeId) continue
-          // Different levels at one node is a grade separation: the deck flies over, no turn.
-          if (outLane.level !== inLane.level) continue
+          // Atlas topology is authoritative: equal scalar levels do not imply a physical join.
+          if (!this.streets.connects(node.id, inLane.edgeId, outLane.edgeId)) continue
           const outStart = outLane.path[0]
           const outDir = norm2(sub2(outLane.path[1], outStart))
           const delta = wrap180(heading(outDir) - heading(inDir))
@@ -81,10 +84,20 @@ export class RoadBuilder {
           if (turn === 't') continue
           if (!this.laneMayTurn(inLane, outLane, turn)) continue
           const signal = this.signalIndex.approachRef.get(`${node.id}:${inLane.edgeId}`)
+          const via = bezier(inEnd, controlPoint(inEnd, inDir, outStart, outDir), outStart)
+          const inEnd3 = inLane.path3[inLane.path3.length - 1]
+          const outStart3 = outLane.path3[0]
+          const nodeLevel = this.streets.connection(node.id, inLane.edgeId).level
           const conn: LaneConnection = {
             laneId: outLane.id,
             turn,
-            via: bezier(inEnd, controlPoint(inEnd, inDir, outStart, outDir), outStart),
+            via,
+            via3: via.map((point, i) => {
+              const t = i / (via.length - 1)
+              const one = 1 - t
+              const y = one * one * inEnd3[1] + 2 * one * t * nodeLevel + t * t * outStart3[1]
+              return [point[0], y, point[1]]
+            }),
             ...(signal ? { signal } : {}),
           }
           inLane.next.push(conn)

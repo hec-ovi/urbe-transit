@@ -1,10 +1,10 @@
 import type { V2, V3 } from '../core/vec'
-import { dist2, dist3, lift, norm2, sub2 } from '../core/vec'
-import { arcLengths, projectArc } from '../core/polygon'
+import { dist3, lift, norm2, sub2 } from '../core/vec'
 import type { Rng } from '../core/rng'
 import type { AtlasBlueprint, RailLine } from '../types/atlas'
 import type { ResolvedParams } from '../types/params'
 import type { RouteStop, ServicePeriod, TransitKind, TransitRoute } from '../types/output'
+import { edgeLevelAtPoint, liftStreetPath } from './elevation'
 
 interface ModeSpec {
   /** Commercial speed m/s, stops and signals folded in. */
@@ -14,13 +14,12 @@ interface ModeSpec {
   peak: number[]
   midday: number[]
   evening: number[]
-  y: number
 }
 
 const MODES: Record<TransitKind, ModeSpec> = {
-  bus: { speed: 5.8, dwell: 15, peak: [300, 420, 600], midday: [600, 900], evening: [1200, 1800], y: 0 },
-  subway: { speed: 9.7, dwell: 30, peak: [180, 240, 300], midday: [420, 600], evening: [600, 900], y: -12 },
-  train: { speed: 13.9, dwell: 45, peak: [600, 900], midday: [1200, 1800], evening: [1800], y: 0 },
+  bus: { speed: 5.8, dwell: 15, peak: [300, 420, 600], midday: [600, 900], evening: [1200, 1800] },
+  subway: { speed: 9.7, dwell: 30, peak: [180, 240, 300], midday: [420, 600], evening: [600, 900] },
+  train: { speed: 13.9, dwell: 45, peak: [600, 900], midday: [1200, 1800], evening: [1800] },
 }
 
 const PEAKS: [number, number][] = [[25200, 32400], [57600, 68400]]
@@ -38,10 +37,13 @@ export class TransitBuilder {
     const t = this.params.toggles
     if (t.bus) {
       for (const r of this.atlas.transit.busRoutes) {
-        const shape2 = this.chainBusShape(r.edgeIds)
+        const shape = this.chainBusShape(r.edgeIds)
         const stops = this.atlas.transit.busStops.filter((s) => r.stopIds.includes(s.id))
         const ordered = r.stopIds.map((id) => stops.find((s) => s.id === id)!)
-        routes.push(this.makeRoute(`R${r.id}`, 'bus', r.id, shape2, ordered.map((s) => ({ id: s.id, p: s.position }))))
+        routes.push(this.makeRoute(`R${r.id}`, 'bus', r.id, shape, ordered.map((stop) => {
+          const edge = this.atlas.streets.edges.find((candidate) => candidate.id === stop.edgeId)!
+          return { id: stop.id, p: [stop.position[0], edgeLevelAtPoint(edge, stop.position), stop.position[1]] }
+        })))
       }
     }
     if (t.subway) for (const line of this.atlas.transit.subwayLines) routes.push(this.makeRailRoute(line, 'subway'))
@@ -52,34 +54,33 @@ export class TransitBuilder {
   private makeRailRoute(line: RailLine, kind: TransitKind): TransitRoute {
     const stations = [...this.atlas.transit.trainStations, ...this.atlas.transit.subwayStations]
     const ordered = line.stationIds.map((id) => stations.find((s) => s.id === id)!)
-    // The blueprint publishes the line's height; the mode default stands in for an older one.
-    const y = line.level ?? (line.underground ? MODES.subway.y : MODES[kind].y)
-    return this.makeRoute(`R${line.id}`, kind, line.id, line.path, ordered.map((s) => ({ id: s.id, p: s.position })), y)
+    const shape = line.path.map((point) => lift(point, line.level))
+    return this.makeRoute(`R${line.id}`, kind, line.id, shape, ordered.map((station) => ({ id: station.id, p: lift(station.position, station.level) })))
   }
 
   /** Orient the atlas edge sequence into one continuous polyline. */
-  private chainBusShape(edgeIds: string[]): V2[] {
+  private chainBusShape(edgeIds: string[]): V3[] {
     const edges = new Map(this.atlas.streets.edges.map((e) => [e.id, e]))
-    const out: V2[] = []
+    const out: V3[] = []
     let cursor: string | null = null
     for (const id of edgeIds) {
       const e = edges.get(id)!
-      let path = e.path
+      let path = liftStreetPath(e, e.path)
       let end = e.to
       if (cursor === null) {
         // Orient the first edge toward the second.
         const nxt = edgeIds.length > 1 ? edges.get(edgeIds[1])! : null
         if (nxt && (e.from === nxt.from || e.from === nxt.to)) {
-          path = [...e.path].reverse()
+          path = [...path].reverse()
           end = e.from
         }
       } else if (e.to === cursor) {
-        path = [...e.path].reverse()
+        path = [...path].reverse()
         end = e.from
       }
       for (const p of path) {
         const last = out[out.length - 1]
-        if (!last || dist2(last, p) > 1e-9) out.push(p)
+        if (!last || dist3(last, p) > 1e-9) out.push(p)
       }
       cursor = end
     }
@@ -87,16 +88,15 @@ export class TransitBuilder {
   }
 
   /** Out-and-back loop: shape doubles back, stops mirror, template from commercial speed and dwell. */
-  private makeRoute(id: string, kind: TransitKind, lineId: string, shape2: V2[], stopPts: { id: string; p: V2 }[], yOverride?: number): TransitRoute {
+  private makeRoute(id: string, kind: TransitKind, lineId: string, oneWay: V3[], stopPts: { id: string; p: V3 }[]): TransitRoute {
     const mode = MODES[kind]
-    const y = yOverride ?? mode.y
-    const arcs = arcLengths(shape2)
+    const arcs = arcLengths3(oneWay)
     const total = arcs[arcs.length - 1]
-    const back = [...shape2].reverse().slice(1)
-    const shape: V3[] = [...shape2, ...back].map((p) => lift(p, y))
+    const back = [...oneWay].reverse().slice(1)
+    const shape: V3[] = [...oneWay, ...back]
 
     const outStops: RouteStop[] = stopPts.map((s) => ({
-      stopId: s.id, x: s.p[0], y, z: s.p[1], shapeDist: projectArc(shape2, arcs, s.p),
+      stopId: s.id, x: s.p[0], y: s.p[1], z: s.p[2], shapeDist: projectArc3Plan(oneWay, arcs, s.p),
     }))
     const backStops: RouteStop[] = [...outStops].reverse().slice(1).map((s) => ({ ...s, shapeDist: 2 * total - s.shapeDist }))
     const stops = [...outStops, ...backStops]
@@ -133,6 +133,34 @@ export class TransitBuilder {
     }
     return out
   }
+}
+
+function arcLengths3(path: V3[]): number[] {
+  const out = [0]
+  for (let i = 1; i < path.length; i++) out.push(out[i - 1] + dist3(path[i - 1], path[i]))
+  return out
+}
+
+/** 3D route distance at the closest ground-plane projection of a stop. */
+function projectArc3Plan(path: V3[], arcs: number[], point: V3): number {
+  let best = 0
+  let bestDistance = Infinity
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1]
+    const b = path[i]
+    const dx = b[0] - a[0]
+    const dz = b[2] - a[2]
+    const length2 = dx * dx + dz * dz
+    const t = length2 < 1e-12 ? 0 : Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[2] - a[2]) * dz) / length2))
+    const x = a[0] + dx * t
+    const z = a[2] + dz * t
+    const distance = Math.hypot(point[0] - x, point[2] - z)
+    if (distance < bestDistance) {
+      bestDistance = distance
+      best = arcs[i - 1] + t * (arcs[i] - arcs[i - 1])
+    }
+  }
+  return best
 }
 
 export interface VehiclePosition {

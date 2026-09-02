@@ -32,10 +32,9 @@ export function buildSignals(atlas: AtlasBlueprint): SignalIndex {
   const approachRef = new Map<string, SignalRef>()
 
   for (const node of atlas.streets.nodes) {
-    const incident = node.edgeIds.map((id) => streets.edges.get(id)!).filter(Boolean)
-    if (incident.length === 0) continue
-    const grade = Math.min(...incident.map((e) => e.level ?? 0))
-    const edges = incident.filter((e) => (e.level ?? 0) === grade)
+    if (node.edgeIds.length === 0) continue
+    const ground = streets.groundConnection(node.id)
+    const edges = ground.edgeIds.map((id) => streets.edges.get(id)!).filter(Boolean)
     // Signalized: two major approaches meet. Minor crossings stay unsignalized (yield).
     const majors = edges.filter((e) => e.class === 'road' || e.class === 'highway').length
     if (edges.length < 3 || majors < 2) continue

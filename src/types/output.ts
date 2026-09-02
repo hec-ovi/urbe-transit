@@ -46,12 +46,13 @@ export interface LinkRef {
   buildingB: string
 }
 
-export type WalkNodeKind = 'sidewalk' | 'corner' | 'crossing-end' | 'stop' | 'station' | 'entry' | 'link-portal'
-export type WalkEdgeKind = 'sidewalk' | 'crossing' | 'access' | 'link'
+export type WalkNodeKind = 'sidewalk' | 'corner' | 'crossing-end' | 'stop' | 'station' | 'station-entrance' | 'station-access' | 'station-handoff' | 'entry' | 'link-portal'
+export type WalkEdgeKind = 'sidewalk' | 'crossing' | 'access' | 'stairs' | 'passage' | 'platform' | 'link'
 
 export interface WalkNode {
   id: string
   x: number
+  y: number
   z: number
   kind: WalkNodeKind
   ref?: string
@@ -68,17 +69,24 @@ export interface WalkEdge {
   to: string
   kind: WalkEdgeKind
   width: number
+  /** Ground-plan compatibility projection. `path3` is authoritative for traversal. */
   path: V2[]
-  /** Height of the surface walked on: 0 at grade, 8 on a highway deck, the link's low end on a link. */
+  /** Exact walking surface. */
+  path3: V3[]
+  /** Maximum path height, retained for flat-path consumers. */
   level: number
   signal?: SignalRef
   linkId?: string
+  stationId?: string
+  accessIndex?: number
 }
 
 export interface LaneConnection {
   laneId: string
   turn: 's' | 'l' | 'r' | 't'
   via: V2[]
+  /** Exact 3D turn path at the atlas node connection level. */
+  via3: V3[]
   signal?: SignalRef
 }
 
@@ -89,7 +97,9 @@ export interface Lane {
   speed: number
   width: number
   path: V2[]
-  /** Height of the carriageway: 0 at grade, 8 on a highway deck. */
+  /** Exact lane centerline, including ramp breakpoints. */
+  path3: V3[]
+  /** Maximum lane height, retained for flat-path consumers. */
   level: number
   next: LaneConnection[]
   left?: { laneId: string; change: boolean }

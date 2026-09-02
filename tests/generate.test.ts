@@ -69,6 +69,30 @@ describe('generate: closed error set', () => {
     )
   })
 
+  it('rejects a missing or incomplete street elevation profile', () => {
+    const missing = buildFixtureAtlas()
+    delete (missing.streets.edges[0] as Partial<typeof missing.streets.edges[0]>).elevationProfile
+    expect(() => generate(missing, { seed: 's' })).toThrowError(
+      expect.objectContaining({ code: 'E_ATLAS_INVALID', path: expect.stringContaining('elevationProfile') }),
+    )
+
+    const incomplete = buildFixtureAtlas()
+    incomplete.streets.edges[0].elevationProfile.at(-1)!.distance -= 1
+    expect(() => generate(incomplete, { seed: 's' })).toThrowError(
+      expect.objectContaining({ code: 'E_ATLAS_INVALID', path: expect.stringContaining('elevationProfile') }),
+    )
+  })
+
+  it('rejects node topology that disagrees with edge endpoint height', () => {
+    const broken = buildFixtureAtlas()
+    const node = broken.streets.nodes.find((candidate) => candidate.id === 'n0')!
+    const deck = node.connections.find((group) => group.edgeIds.includes('e0'))!
+    deck.level = 0
+    expect(() => generate(broken, { seed: 's' })).toThrowError(
+      expect.objectContaining({ code: 'E_ATLAS_INVALID', path: expect.stringContaining('connections') }),
+    )
+  })
+
   it('rejects invalid params with E_PARAMS_INVALID', () => {
     expect(() => generate(atlas, { seed: '' })).toThrowError(
       expect.objectContaining({ code: 'E_PARAMS_INVALID' }),

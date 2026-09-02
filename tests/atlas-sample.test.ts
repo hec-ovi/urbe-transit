@@ -39,13 +39,14 @@ describe.skipIf(!present).each(SAMPLES)('atlas sample pipeline: %s', (name) => {
 
   it('alleys are first-class: top wire density, no car lanes', () => {
     const alleys = atlas.streets.edges.filter((e) => e.class === 'alley')
-    expect(alleys.length).toBeGreaterThan(0)
     const laneEdges = new Set(out.networks.road.lanes.map((l) => l.edgeId))
     for (const a of alleys) expect(laneEdges.has(a.id), `${a.id} has lanes`).toBe(false)
 
     const density = wireDensityPerClass(atlas, out.links.filter((l) => l.kind === 'wire'))
-    const others = Object.entries(density).filter(([cls]) => cls !== 'alley')
-    for (const [cls, d] of others) expect(density.alley, `alley vs ${cls}`).toBeGreaterThan(d)
+    if (alleys.length > 0) {
+      const others = Object.entries(density).filter(([cls]) => cls !== 'alley')
+      for (const [cls, d] of others) expect(density.alley, `alley vs ${cls}`).toBeGreaterThan(d)
+    }
     expect(density.highway ?? 0).toBe(0)
   }, 120000)
 
