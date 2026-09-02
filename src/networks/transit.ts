@@ -52,7 +52,8 @@ export class TransitBuilder {
   private makeRailRoute(line: RailLine, kind: TransitKind): TransitRoute {
     const stations = [...this.atlas.transit.trainStations, ...this.atlas.transit.subwayStations]
     const ordered = line.stationIds.map((id) => stations.find((s) => s.id === id)!)
-    const y = line.underground ? MODES.subway.y : MODES[kind].y
+    // The blueprint publishes the line's height; the mode default stands in for an older one.
+    const y = line.level ?? (line.underground ? MODES.subway.y : MODES[kind].y)
     return this.makeRoute(`R${line.id}`, kind, line.id, line.path, ordered.map((s) => ({ id: s.id, p: s.position })), y)
   }
 

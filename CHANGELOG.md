@@ -1,5 +1,7 @@
 # Changelog
 
+0.5: the movement networks carry height. Every lane and walk edge holds the level of the street it runs on, turn connections stay inside one level, and a node whose streets sit at different levels is a grade separation with no light on the deck. Rail lines ride at the level the blueprint gives them.
+
 0.4: aperture bases on one building admit a floor stack of its family's floor heights inside the parcel envelope, so exterior can always pin a floor to every base. A base that would leave no legal floor count is refused and the link takes the next one up.
 
 0.3: bridges and AC tubes fly over the street, never through it: a link crossing a street keeps its underside 5.5 m above that street's surface, so one crossing a highway deck starts at 13.5 m. Street `level` is read from the blueprint.

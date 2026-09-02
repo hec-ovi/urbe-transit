@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urbe/connections/networks",
   "title": "Networks",
-  "description": "All movement networks. Units meters, ground plane XZ, +Y up: 2D points are [x,z], 3D points [x,y,z]. One polyline-lane model, instantiated for sidewalks (walk), roads (lanes) and air corridors; transit rides on its own shapes with frequency timetables. Signal state at time t is closed-form: phase containing (t + offset) mod cycle; state strings hold one char per controlled link (G=go, r=stop, y=clearing).",
+  "description": "All movement networks. Units meters, ground plane XZ, +Y up: 2D points are [x,z], 3D points [x,y,z]. One polyline-lane model, instantiated for sidewalks (walk), roads (lanes) and air corridors; transit rides on its own shapes with frequency timetables. Lanes and walk edges carry the level of the street they run on, so a highway deck rides at 8 m; a node whose streets sit at different levels is a grade separation, never a turn. Signal state at time t is closed-form: phase containing (t + offset) mod cycle; state strings hold one char per controlled link (G=go, r=stop, y=clearing).",
   "type": "object",
   "required": ["walk", "road", "signals", "transit", "air"],
   "properties": {
@@ -28,7 +28,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "from", "to", "kind", "width", "path"],
+            "required": ["id", "from", "to", "kind", "width", "path", "level"],
             "properties": {
               "id": { "type": "string" },
               "from": { "type": "string" },
@@ -36,6 +36,7 @@
               "kind": { "enum": ["sidewalk", "crossing", "access", "link"] },
               "width": { "type": "number" },
               "path": { "$ref": "#/$defs/path2" },
+              "level": { "type": "number", "description": "height of the surface walked on: 0 at grade, 8 on a highway deck; on a link edge the link's low end, where the link's own 3D path is the exact ride" },
               "signal": { "$ref": "#/$defs/signalRef", "description": "crossings only: walk is legal while state char is G" },
               "linkId": { "type": "string", "description": "kind link only: the inter-building link walked over or through" }
             }
@@ -51,7 +52,7 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "edgeId", "index", "speed", "width", "path", "next"],
+            "required": ["id", "edgeId", "index", "speed", "width", "path", "next", "level"],
             "properties": {
               "id": { "type": "string" },
               "edgeId": { "type": "string", "description": "atlas street edge" },
@@ -59,6 +60,7 @@
               "speed": { "type": "number", "description": "m/s limit" },
               "width": { "type": "number" },
               "path": { "$ref": "#/$defs/path2", "description": "lane centerline in driving direction" },
+              "level": { "type": "number", "description": "height of the carriageway: 0 at grade, 8 on a highway deck; a turn connection never joins two levels" },
               "allow": { "type": "array", "items": { "enum": ["car", "bus"] }, "description": "default all" },
               "next": {
                 "type": "array",

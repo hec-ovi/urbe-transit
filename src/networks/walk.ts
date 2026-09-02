@@ -58,7 +58,7 @@ export class WalkBuilder {
         const a = this.addNode({ x: trimmed[0][0], z: trimmed[0][1], kind: 'corner' })
         const bIdx = trimmed.length - 1
         const b = this.addNode({ x: trimmed[bIdx][0], z: trimmed[bIdx][1], kind: 'corner' })
-        this.addEdge({ from: a, to: b, kind: 'sidewalk', width: sw, path: trimmed })
+        this.addEdge({ from: a, to: b, kind: 'sidewalk', width: sw, path: trimmed, level: e.level ?? 0 })
         this.registerCorner(e.from, a, trimmed[0], e.id)
         this.registerCorner(e.to, b, trimmed[bIdx], e.id)
       }
@@ -83,7 +83,7 @@ export class WalkBuilder {
         if (a.edgeId === b.edgeId || a.nodeId === b.nodeId) continue
         const pa = this.point(a.nodeId)
         const pb = this.point(b.nodeId)
-        this.addEdge({ from: a.nodeId, to: b.nodeId, kind: 'sidewalk', width: CORNER_WIDTH, path: [pa, pb] })
+        this.addEdge({ from: a.nodeId, to: b.nodeId, kind: 'sidewalk', width: CORNER_WIDTH, path: [pa, pb], level: this.cornerLevel(a.edgeId, b.edgeId) })
       }
     }
   }
@@ -94,7 +94,7 @@ export class WalkBuilder {
         const a = this.crossingEndNode(seg.from, c.nodeId)
         const b = this.crossingEndNode(seg.to, c.nodeId)
         const signal = this.signalIndex.crossingRef.get(`${c.nodeId}:${i}`)
-        this.addEdge({ from: a, to: b, kind: 'crossing', width: CROSSING_WIDTH, path: [seg.from, seg.to], ...(signal ? { signal } : {}) })
+        this.addEdge({ from: a, to: b, kind: 'crossing', width: CROSSING_WIDTH, path: [seg.from, seg.to], level: this.nodeLevel(c.nodeId), ...(signal ? { signal } : {}) })
       })
     }
   }
@@ -113,7 +113,7 @@ export class WalkBuilder {
     }
     if (best && bestD <= 0.5) return best
     const id = this.addNode({ x: p[0], z: p[1], kind: 'crossing-end' })
-    if (best) this.addEdge({ from: id, to: best, kind: 'sidewalk', width: CORNER_WIDTH, path: [p, this.point(best)] })
+    if (best) this.addEdge({ from: id, to: best, kind: 'sidewalk', width: CORNER_WIDTH, path: [p, this.point(best)], level: this.nodeLevel(streetNodeId) })
     return id
   }
 
@@ -147,7 +147,7 @@ export class WalkBuilder {
     }
     if (!best) return
     const path = [...(prefix ?? [p]), [best.x, best.z] as V2]
-    this.addEdge({ from: fromId, to: best.id, kind: 'access', width: CORNER_WIDTH, path })
+    this.addEdge({ from: fromId, to: best.id, kind: 'access', width: CORNER_WIDTH, path, level: 0 })
   }
 
   /** Walkable inter-building links join the graph as portal-to-portal edges. */
@@ -161,8 +161,22 @@ export class WalkBuilder {
       this.addEdge({
         from: a, to: b, kind: 'link', width: link.crossSection.width,
         path: link.path.map(drop), linkId: link.id,
+        level: Math.min(link.path[0][1], link.path[link.path.length - 1][1]) - link.crossSection.height / 2,
       })
     }
+  }
+
+  /** Walking level at a street node: the lowest street meeting there, the one at grade. */
+  private nodeLevel(streetNodeId: string): number {
+    const n = this.streets.nodes.get(streetNodeId)
+    if (!n) return 0
+    const levels = n.edgeIds.map((id) => this.streets.edges.get(id)?.level ?? 0)
+    return levels.length === 0 ? 0 : Math.min(...levels)
+  }
+
+  /** A corner arc joins two sidewalks; it sits on the lower of the two. */
+  private cornerLevel(edgeA: string, edgeB: string): number {
+    return Math.min(this.streets.edges.get(edgeA)?.level ?? 0, this.streets.edges.get(edgeB)?.level ?? 0)
   }
 
   private point(nodeId: string): V2 {

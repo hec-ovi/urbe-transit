@@ -123,6 +123,8 @@ export interface Station {
   position: Vec2
   districtId: string
   entrances: Vec2[]
+  /** Platform height: 0 at grade, -12 for a subway. Entrances stay at grade. */
+  level?: number
 }
 
 export interface RailLine {
@@ -130,6 +132,8 @@ export interface RailLine {
   stationIds: string[]
   path: Polyline
   underground: boolean
+  /** Track height: 0 at grade, -12 for a subway. Absent reads as the mode default. */
+  level?: number
 }
 
 export interface BuildingVolume {

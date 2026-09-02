@@ -69,6 +69,8 @@ export interface WalkEdge {
   kind: WalkEdgeKind
   width: number
   path: V2[]
+  /** Height of the surface walked on: 0 at grade, 8 on a highway deck, the link's low end on a link. */
+  level: number
   signal?: SignalRef
   linkId?: string
 }
@@ -87,6 +89,8 @@ export interface Lane {
   speed: number
   width: number
   path: V2[]
+  /** Height of the carriageway: 0 at grade, 8 on a highway deck. */
+  level: number
   next: LaneConnection[]
   left?: { laneId: string; change: boolean }
   right?: { laneId: string; change: boolean }

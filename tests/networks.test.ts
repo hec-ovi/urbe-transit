@@ -101,6 +101,49 @@ describe('road network', () => {
   })
 })
 
+describe('levels: the deck flies over, it does not join', () => {
+  const levelOf = new Map(atlas.streets.edges.map((e) => [e.id, e.level ?? 0]))
+
+  it('lanes and sidewalks sit on the surface their street runs on', () => {
+    const onDeck = road.lanes.filter((l) => l.level === 8)
+    expect(onDeck.length).toBeGreaterThan(0)
+    for (const l of road.lanes) expect(l.level, l.id).toBe(levelOf.get(l.edgeId))
+    for (const e of walk.edges) expect(Number.isFinite(e.level), e.id).toBe(true)
+  })
+
+  it('no turn connection drops from one level to another', () => {
+    const byId = new Map(road.lanes.map((l) => [l.id, l]))
+    for (const l of road.lanes) {
+      for (const c of l.next) expect(byId.get(c.laneId)!.level, `${l.id} -> ${c.laneId}`).toBe(l.level)
+    }
+  })
+
+  it('a grade-separated node signals the streets at grade, never the deck', () => {
+    const byId = new Map(atlas.streets.edges.map((e) => [e.id, e]))
+    const mixed = atlas.streets.nodes.filter((n) => new Set(n.edgeIds.map((id) => byId.get(id)!.level ?? 0)).size > 1)
+    expect(mixed.length).toBeGreaterThan(0)
+    for (const n of mixed) {
+      const signal = signals.find((s) => s.nodeId === n.id)
+      if (!signal) continue
+      const grade = Math.min(...n.edgeIds.map((id) => byId.get(id)!.level ?? 0))
+      const controlled = n.edgeIds.filter((id) => (byId.get(id)!.level ?? 0) === grade)
+      const crossings = atlas.streets.crossings.find((c) => c.nodeId === n.id)?.segments.length ?? 0
+      expect(signal.linkCount).toBe(controlled.length + crossings)
+    }
+  })
+
+  it('a walkable link joins the graph at the height it flies at', () => {
+    const byLink = new Map(out.links.map((l) => [l.id, l]))
+    const linkEdges = walk.edges.filter((e) => e.kind === 'link')
+    expect(linkEdges.length).toBeGreaterThan(0)
+    for (const e of linkEdges) {
+      const link = byLink.get(e.linkId!)!
+      const low = Math.min(...link.path.map((p) => p[1])) - link.crossSection.height / 2
+      expect(e.level, e.id).toBeCloseTo(low, 9)
+    }
+  })
+})
+
 describe('air network', () => {
   it('corridors keep one direction per altitude layer', () => {
     const layers = new Set(out.networks.air.corridors.map((c) => c.altitude))

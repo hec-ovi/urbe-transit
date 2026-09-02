@@ -12,7 +12,7 @@ const LANES_PER_DIR: Record<StreetClass, number> = { alley: 0, street: 1, road: 
 const SPEED: Record<StreetClass, number> = { alley: 0, street: 8.33, road: 13.9, highway: 27.8 }
 const VIA_SAMPLES = 6
 
-/** Lane graph: per-direction offset centerlines, adjacency, turn connections through intersections. */
+/** Lane graph: per-direction offset centerlines, adjacency, turn connections within one level. */
 export class RoadBuilder {
   private readonly streets: StreetIndex
   private readonly lanes: Lane[] = []
@@ -52,7 +52,7 @@ export class RoadBuilder {
         if (trimmed.length < 2) continue
         const id = `${edgeId}${dir}${i}`
         const lane: Lane = {
-          id, edgeId, index: i, speed: SPEED[e.class], width: laneWidth, path: trimmed, next: [],
+          id, edgeId, index: i, speed: SPEED[e.class], width: laneWidth, path: trimmed, next: [], level: e.level ?? 0,
           ...(i + 1 < perDir ? { left: { laneId: `${edgeId}${dir}${i + 1}`, change: true } } : {}),
           ...(i > 0 ? { right: { laneId: `${edgeId}${dir}${i - 1}`, change: true } } : {}),
         }
@@ -72,6 +72,8 @@ export class RoadBuilder {
         const inDir = norm2(sub2(inEnd, inLane.path[inLane.path.length - 2]))
         for (const outLane of depart) {
           if (outLane.edgeId === inLane.edgeId) continue
+          // Different levels at one node is a grade separation: the deck flies over, no turn.
+          if (outLane.level !== inLane.level) continue
           const outStart = outLane.path[0]
           const outDir = norm2(sub2(outLane.path[1], outStart))
           const delta = wrap180(heading(outDir) - heading(inDir))

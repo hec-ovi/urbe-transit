@@ -19,8 +19,10 @@ export interface SignalIndex {
 
 /**
  * Fixed-time two-group controllers at busy intersections. State string layout: one char per
- * incident edge (approach), then one per crossing segment. Walk sync is by construction:
- * a crossing is G exactly while the roadway it spans has the red.
+ * controlled edge (approach), then one per crossing segment. Walk sync is by construction:
+ * a crossing is G exactly while the roadway it spans has the red. A node whose streets sit at
+ * different levels is a grade separation: only the streets at grade meet, and only they are
+ * controlled; the deck flies over with no light.
  */
 export function buildSignals(atlas: AtlasBlueprint): SignalIndex {
   const streets = new StreetIndex(atlas)
@@ -30,7 +32,10 @@ export function buildSignals(atlas: AtlasBlueprint): SignalIndex {
   const approachRef = new Map<string, SignalRef>()
 
   for (const node of atlas.streets.nodes) {
-    const edges = node.edgeIds.map((id) => streets.edges.get(id)!).filter(Boolean)
+    const incident = node.edgeIds.map((id) => streets.edges.get(id)!).filter(Boolean)
+    if (incident.length === 0) continue
+    const grade = Math.min(...incident.map((e) => e.level ?? 0))
+    const edges = incident.filter((e) => (e.level ?? 0) === grade)
     // Signalized: two major approaches meet. Minor crossings stay unsignalized (yield).
     const majors = edges.filter((e) => e.class === 'road' || e.class === 'highway').length
     if (edges.length < 3 || majors < 2) continue
