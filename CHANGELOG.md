@@ -1,6 +1,6 @@
 # Changelog
 
-0.9: road lanes, sidewalks, turns and buses preserve every atlas elevation-profile breakpoint in authoritative 3D paths. Link clearance reads the highest local profile value under its complete width. Transfers follow atlas node connection groups. Underground station entrances copy their exact stairs, passages and platform handoffs into the walk graph. Invalid profiles, topology and access paths fail closed.
+0.9.0: road lanes, sidewalks, turns and buses preserve every atlas elevation-profile breakpoint in authoritative 3D paths. Link clearance reads the highest local profile value under its complete width. Transfers follow atlas node connection groups. Underground station entrances copy their exact stairs, passages and platform handoffs into the walk graph. Invalid profiles, topology and access paths fail closed.
 
 0.8: collision and clearance checks use the complete swept width of bridges, tubes, tunnels and wires. Link edges cannot clip stations, third buildings or highway decks, and collinear boundary contact is detected.
 
