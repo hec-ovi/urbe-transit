@@ -70,5 +70,6 @@ Anything the toggles request that the atlas cannot feed (subway on, no stations)
 
 ## Depends on
 - ../atlas/CONTRACT.md (blueprint v0.15; this box mirrors its consumed movement subset and ignores the additive hydrology document)
+- [Exterior](../exterior/CONTRACT.md): stable external attachment records for rooftop span requests; no code or runtime import.
 
-The rooftop pass depends only on its local request schema. Its attachment payload is structurally compatible with the stable record documented by `../exterior/schemas/external-attachment.schema.json`, but it imports no Exterior code or data.
+The rooftop pass consumes those records through its local request schema. The caller supplies the complete scene.

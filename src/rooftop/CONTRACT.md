@@ -24,4 +24,6 @@ Purpose: fits a restrained deterministic subset of antenna cables between stable
 
 ## Depends on
 
-Connections' shared deterministic RNG, vector, polygon, error and version primitives.
+- Connections' shared deterministic RNG, vector, polygon, error and version primitives.
+
+- [Exterior](../../../exterior/CONTRACT.md): the stable [external attachment shape](../../../exterior/schemas/external-attachment.schema.json) mirrored in the request; no code or runtime import.
