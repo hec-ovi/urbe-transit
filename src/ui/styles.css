@@ -30,12 +30,10 @@
   --dur-normal: 180ms;
 }
 
-/* Enforce square corners strictly across all elements */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  border-radius: 0 !important;
 }
 
 /* Custom scrollbars */
@@ -184,6 +182,8 @@ body {
 }
 
 .seed-row input {
+  -webkit-appearance: none;
+  appearance: none;
   flex: 1;
   min-width: 0;
   background: var(--bg-input);
@@ -208,6 +208,8 @@ body {
 
 /* Buttons */
 button {
+  -webkit-appearance: none;
+  appearance: none;
   background: var(--bg-panel);
   border: 1px solid var(--border-base);
   color: var(--text-primary);
