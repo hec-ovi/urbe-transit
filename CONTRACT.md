@@ -2,7 +2,7 @@
 
 Purpose: deterministically computes inter-building links (bridges, AC tubes, wires, tunnels) with exact building apertures, and every movement network (sidewalk walk graph with signal-synced crossings, car lanes, bus, subway and train routes with timetables, air corridors) from an atlas blueprint.
 
-Status: stable. Schemas below are the coupling surface.
+Status: v0.9.0 implemented and tested. Schemas below are the coupling surface.
 
 ## Entry point
 `generate(atlas, params) -> output` (library, `src/index.ts`; pure, synchronous, no IO).
@@ -51,4 +51,4 @@ Anything the toggles request that the atlas cannot feed (subway on, no stations)
 - Trip template offsets are non-decreasing with depart >= arrive; service periods do not overlap and stay inside the day span.
 
 ## Depends on
-- ../atlas/CONTRACT.md (blueprint shape pending there; this box's atlas-blueprint schema is the consumed subset and the sync point)
+- ../atlas/CONTRACT.md (blueprint v0.15; this box mirrors its consumed movement subset and ignores the additive hydrology document)
