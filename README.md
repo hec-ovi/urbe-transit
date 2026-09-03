@@ -1,6 +1,6 @@
 # urbe-transit
 
-Everything that links or moves through a generated city. From an atlas blueprint and a seed it computes the inter-building links (bridges, walkable AC tubes, wires, underground tunnels) with the exact aperture each building has to carve, and every movement network: sidewalks with signal synced crossings, car lanes, bus, subway and train routes with timetables, and air corridors.
+Everything that links or moves through a generated city. From an atlas blueprint and a seed it computes the inter-building links (bridges, walkable AC tubes, wires, underground tunnels) with the exact aperture each building has to carve, and every movement network: sidewalks with signal synced crossings, car lanes, bus, subway and train routes with timetables, and air corridors. A separate post-exterior entry fits selected rooftop antenna cables over explicit building and reservation geometry.
 
 Pure and synchronous, no IO, no randomness outside the seed. Same blueprint and params, byte-identical output.
 
@@ -24,6 +24,15 @@ const output = generate(atlasBlueprint, { seed: 'alpha' })
 
 An atlas `CityBlueprint` (the consumed subset is mirrored at `src/types/atlas.ts`) plus params: seed, per-kind toggles, link limits, day span. Toggles go down to nothing, so an ancient city runs with tunnels only.
 
+Rooftop cables use their own additive entry and do not change the atlas pass:
+
+```ts
+import { generateRooftopSpans } from './src'
+const rooftop = generateRooftopSpans(request)
+```
+
+The request follows `schemas/rooftop-span-request.schema.json`: stable building-local attachment records, a seed, a complete set of generic building, facade, roof, opening, access, equipment and reservation prisms, plus optional distance, selection ratio, cap, cable and path limits. `fixtures/rooftop-spans.request.json` is a current Exterior handoff with two accepted spans and one quiet roof.
+
 ## Out
 
 One document (`schemas/output.schema.json`):
@@ -36,9 +45,13 @@ One document (`schemas/output.schema.json`):
 
 Anything the toggles ask for that the blueprint cannot feed comes back as an empty layer, never an error. `CONTRACT.md` carries the invariants (face convention, aperture bounds, signal cycle arithmetic, timetable ordering) and the closed error set.
 
+The rooftop result follows `schemas/rooftop-span-output.schema.json`. It may be empty. Every span carries stable endpoint refs, true 3D catenary coefficients and a derived rendering path, thickness, sag, slack and exact length. Directional fittings must face each other. Continuous collision checks use exact polygon overlap intervals and analytic curve height bounds, including cable radius, obstacle margins and attachment clearance. A failed span is omitted rather than clipped.
+
+Package release 0.10.0 keeps the original connections document format at 0.9.0 byte-for-byte. The rooftop document has its own schema version 1.0.0 and reports generator release 0.10.0 separately.
+
 ## Layout
 
-- `src/` generator: links, apertures, networks. `src/ui/` preview with views, widgets and components.
+- `src/` generator: links, apertures, networks. `src/rooftop/` is the isolated antenna span fitter. `src/ui/` is the preview with views, widgets and components.
 - `schemas/` output JSON Schemas, `src/types/atlas.ts` the consumed atlas subset.
 - `fixtures/` standalone fixture atlas, `tests/` contract tests.
 

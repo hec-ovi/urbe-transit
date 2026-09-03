@@ -1,5 +1,7 @@
 # Changelog
 
+0.10.0: additive post-exterior rooftop antenna span fitting from stable attachment refs and an explicit generic obstacle scene. Seeded directional pairing stays sparse and permits quiet roofs. Accepted cables publish a true catenary, rendering path, thickness, sag, slack and length. Complete-curve collision uses exact ground intervals and analytic height bounds, including endpoint and obstacle clearance. The original connections document remains byte-identical at format 0.9.0; rooftop documents use schema 1.0.0.
+
 0.9.0: road lanes, sidewalks, turns and buses preserve every atlas elevation-profile breakpoint in authoritative 3D paths. Link clearance reads the highest local profile value under its complete width. Transfers follow atlas node connection groups. Underground station entrances copy their exact stairs, passages and platform handoffs into the walk graph. Invalid profiles, topology and access paths fail closed.
 
 0.8: collision and clearance checks use the complete swept width of bridges, tubes, tunnels and wires. Link edges cannot clip stations, third buildings or highway decks, and collinear boundary contact is detected.

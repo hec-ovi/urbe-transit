@@ -1,12 +1,17 @@
 # CONTRACT: connections
 
-Purpose: deterministically computes inter-building links (bridges, AC tubes, wires, tunnels) with exact building apertures, and every movement network (sidewalk walk graph with signal-synced crossings, car lanes, bus, subway and train routes with timetables, air corridors) from an atlas blueprint.
+Purpose: deterministically computes inter-building links and movement networks from an atlas blueprint, plus a separate post-exterior pass for restrained rooftop antenna cables over explicit geometry.
 
-Status: v0.9.0 implemented and tested. Schemas below are the coupling surface.
+Status: v0.10.0 implemented and tested. Schemas below are the coupling surface.
+
+Release and document versions are separate. Package release is 0.10.0. The original connections document remains format 0.9.0 so `generate(atlas, params)` stays byte-identical. The rooftop span document starts at schema 1.0.0 and also reports the package version that produced it.
 
 ## Entry point
 `generate(atlas, params) -> output` (library, `src/index.ts`; pure, synchronous, no IO).
 Same inputs give a byte-identical output document. No LLM, no randomness outside the seed.
+
+`generateRooftopSpans(request) -> rooftopSpanOutput` (library, `src/index.ts`; pure, synchronous, no IO).
+This is additive. It does not change the inputs, output, selection or geometry of `generate(atlas, params)`.
 
 Preview: `npm run dev` serves a 2D pan and zoom map over the fixture atlas with every layer toggleable. `npm test` runs the contract tests.
 
@@ -20,6 +25,12 @@ Street classes come from atlas and the list is additive: `alley` carries the mos
 
 Conventions (project wide): units meters, ground plane XZ, +Y up, 2D points [x, z], 3D points [x, y, z], polygons CCW.
 
+### Rooftop span request
+
+[schemas/rooftop-span-request.schema.json](schemas/rooftop-span-request.schema.json) carries a seed, stable building-local external attachment records, every closed obstacle or reservation volume that a candidate can reach, and optional fitting limits. The attachment payload uses the same fields as Exterior's external attachment record, wrapped only with its building ID. Volumes are generic closed vertical prisms with a simple CCW footprint, bottom, top and optional clearance. The kind labels cover buildings, facades, roofs, openings, access, equipment and reservations, but collision behavior is identical for every kind. The caller supplies the complete scene; there is no Exterior runtime import or inferred sibling state.
+
+Defaults keep the result sparse: endpoints may be used once, candidate distance is bounded, a seeded selection ratio is applied, and a global span cap is enforced. `selectionRatio: 0`, `maxSpans: 0`, no attachments, or no feasible pair returns an empty result.
+
 ## Out
 One document: [schemas/output.schema.json](schemas/output.schema.json)
 - `links`: [schemas/link.schema.json](schemas/link.schema.json). Each link: kind, both endpoints (building, floor, face, aperture), centerline path, cross section, walkable flags, length. Bridges, AC tubes and tunnels pair facing buildings; wires follow the street grid and hang overhead across it. The solid is the cross section swept along the path, closed at both ends by the aperture cuts: bridge 4.0 x 3.2 m (open deck, walking surface at the aperture base), AC tube 2.0 x 2.4 m (closed box, walked over the top or through the inside), tunnel 3.0 x 2.8 m, wire a 0.1 m cable on a catenary.
@@ -28,10 +39,13 @@ One document: [schemas/output.schema.json](schemas/output.schema.json)
 - `networks`: [schemas/networks.schema.json](schemas/networks.schema.json). Walk graph with exact 3D paths for sidewalks, crossings, station stairs, passages, platforms and links; road lane graph with exact 3D lanes and turns, speed, direction and lane-change adjacency; signal controllers; transit routes with 3D shapes, stops, trip templates and headway service; air corridors. The 2D `path` fields are compatibility projections of authoritative `path3` fields.
 - `layers`: manifest of the toggleable preview layers present.
 
+Rooftop span output: [schemas/rooftop-span-output.schema.json](schemas/rooftop-span-output.schema.json), whose entries follow [schemas/rooftop-span.schema.json](schemas/rooftop-span.schema.json). Its metadata separates `schemaVersion` from `generatorVersion`. Each accepted span publishes a stable ID, both building and attachment refs with exact positions, cable thickness, sag, slack ratio, extra length and exact arc length. Its authoritative catenary definition gives the horizontal origin and unit direction plus the coefficients of `y(s) = scale * cosh((s - horizontalOffset) / scale) + verticalOffset` over the complete domain. `path` is a deterministic rendering polyline evaluated from that curve, not collision authority.
+
 ## Errors
 Closed set, thrown as `ConnectionsError { code, message, path }`:
 - `E_ATLAS_INVALID`: blueprint fails schema or topology checks (dangling ids, incomplete elevation profile, invalid node connection partition, discontinuous station access, footprint not counter-clockwise, or a street edge with neither carriageway nor sidewalk).
 - `E_PARAMS_INVALID`: params fail schema or range checks.
+- `E_ROOFTOP_INPUT_INVALID`: rooftop span request fails its schema, identity, polygon, range or completeness checks.
 
 Anything the toggles request that the atlas cannot feed (subway on, no stations) yields that layer empty, never an error.
 
@@ -49,6 +63,12 @@ Anything the toggles request that the atlas cannot feed (subway on, no stations)
 - Every lane, sidewalk and bus route follows the atlas elevation profile in `path3`, including each ramp breakpoint. Every turn follows one atlas node connection group; equal heights alone never create a transfer. The scalar `level` is the maximum height of the exact path.
 - Every underground station entrance joins the walk graph at its published street point. Its stairs and passage copy the atlas access-path segments exactly, consecutive endpoints share one graph node, and the platform handoff joins the station node at the published platform level. No station route is flattened to 2D or inferred from its shaft footprint.
 - Trip template offsets are non-decreasing with depart >= arrive; service periods do not overlap and stay inside the day span.
+- Rooftop attachment refs are unique by building ID plus attachment ID. Directional endpoints connect only when each directional normal points toward the other endpoint inside the requested tolerance. Omnidirectional endpoints impose no heading.
+- Rooftop pairs use distinct buildings, lie inside the requested distance band and are chosen only by stable refs plus seed under the selection ratio and caps. Endpoint elevation does not force a link, so higher buildings remain candidates and quiet roofs remain valid.
+- Each rooftop span is a true catenary under world gravity. Its first and last path points equal the supplied attachments, every interior path point is evaluated from its published coefficients, and moving either attachment recomputes the curve.
+- Cable collision uses the complete continuous curve and its radius. Exact ground-track intervals against each polygon and an analytic catenary height range over every interval prove separation from the complete vertical prism and its clearance. Output samples never decide collision. Attachment roof-plane clearance disks are also checked against unrelated access, equipment, opening and reservation footprints. A touching or unproved candidate is omitted, never clipped or rerouted through a solid.
 
 ## Depends on
 - ../atlas/CONTRACT.md (blueprint v0.15; this box mirrors its consumed movement subset and ignores the additive hydrology document)
+
+The rooftop pass depends only on its local request schema. Its attachment payload is structurally compatible with the stable record documented by `../exterior/schemas/external-attachment.schema.json`, but it imports no Exterior code or data.
