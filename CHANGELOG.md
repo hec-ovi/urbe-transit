@@ -4,7 +4,7 @@
 
 0.8: collision and clearance checks use the complete swept width of bridges, tubes, tunnels and wires. Link edges cannot clip stations, third buildings or highway decks, and collinear boundary contact is detected.
 
-0.7: nothing this box builds enters a station. A link is refused where its solid overlaps a platform box, an entrance shaft or a platform passage, in plan and in height, so a bridge still flies over a platform at grade and a tunnel goes around a shaft instead of through it.
+0.7: links stay outside station platform boxes, entrance shafts and platform passages in plan and height. Bridges may cross above grade platforms, while tunnels route around station shafts.
 
 0.6: an AC tube is 2.0 by 2.4 m, so the player it is walkable for can stand up inside it. The contract publishes the cross section of every link kind and holds every walkable-inside link to standing room.
 
