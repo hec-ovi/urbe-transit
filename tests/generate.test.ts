@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { generate, ConnectionsError } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
@@ -19,6 +20,14 @@ describe('generate: determinism', () => {
     const a = generate(buildFixtureAtlas(), { seed: 'alpha' })
     const b = generate(buildFixtureAtlas(), { seed: 'alpha' })
     expect(JSON.stringify(a)).toBe(JSON.stringify(b))
+  })
+
+  it('keeps the 0.9.0 document byte-identical across additive package releases', () => {
+    const json = JSON.stringify(generate(buildFixtureAtlas(), { seed: 'legacy-byte-contract' }))
+    expect(JSON.parse(json).meta.version).toBe('0.9.0')
+    expect(createHash('sha256').update(json).digest('hex')).toBe(
+      '471d73b4ff00ebb480f54ab811ccf4e1aa73310324dcb31d743129416513b322',
+    )
   })
 
   it('a different seed changes the result', () => {

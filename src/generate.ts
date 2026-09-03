@@ -9,7 +9,7 @@ import { buildAir } from './networks/air'
 import type { AtlasBlueprint } from './types/atlas'
 import { resolveParams, type ConnectionsParams } from './types/params'
 import type { ConnectionsOutput, LayerId } from './types/output'
-import { VERSION } from './version'
+import { CONNECTIONS_DOCUMENT_VERSION } from './version'
 
 const LAYER_NAMES: Record<LayerId, string> = {
   'links.bridges': 'Bridges',
@@ -55,7 +55,7 @@ export function generate(atlas: AtlasBlueprint, params: ConnectionsParams): Conn
   layerIf('air', air.corridors.length > 0)
 
   return {
-    meta: { seed: resolved.seed, atlasSeed: atlas.meta.seed, version: VERSION },
+    meta: { seed: resolved.seed, atlasSeed: atlas.meta.seed, version: CONNECTIONS_DOCUMENT_VERSION },
     links,
     apertures,
     linkRefs: refs,

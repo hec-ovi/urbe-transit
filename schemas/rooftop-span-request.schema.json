@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/rooftop-span-request",
+  "title": "Rooftop span request",
+  "description": "A complete, renderer-neutral obstacle scene and stable rooftop attachment records for deterministic antenna cable fitting. Units are meters, ground plane XZ, +Y up.",
+  "type": "object",
+  "required": ["seed", "attachments", "volumes"],
+  "additionalProperties": false,
+  "properties": {
+    "seed": { "type": "string", "minLength": 1 },
+    "attachments": {
+      "type": "array",
+      "maxItems": 2048,
+      "items": { "$ref": "#/$defs/attachmentRef" }
+    },
+    "volumes": {
+      "type": "array",
+      "maxItems": 8192,
+      "items": { "$ref": "#/$defs/volume" },
+      "description": "Complete set of building, facade, roof, opening, access, equipment and reservation solids that a possible span can reach. Each solid is a closed vertical prism. Multiple prisms may describe one building."
+    },
+    "params": { "$ref": "#/$defs/params" }
+  },
+  "$defs": {
+    "point2": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number", "minimum": -1000000000, "maximum": 1000000000 },
+        { "type": "number", "minimum": -1000000000, "maximum": 1000000000 }
+      ],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "point3": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number", "minimum": -1000000000, "maximum": 1000000000 },
+        { "type": "number", "minimum": -1000000000, "maximum": 1000000000 },
+        { "type": "number", "minimum": -1000000000, "maximum": 1000000000 }
+      ],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "omnidirectionalAttachment": {
+      "type": "object",
+      "required": ["id", "position", "orientation", "clearanceRadius"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "position": { "$ref": "#/$defs/point3" },
+        "orientation": { "const": "omnidirectional" },
+        "clearanceRadius": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "directionalAttachment": {
+      "type": "object",
+      "required": ["id", "position", "orientation", "normal", "clearanceRadius"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "position": { "$ref": "#/$defs/point3" },
+        "orientation": { "const": "directional" },
+        "normal": {
+          "$ref": "#/$defs/point3",
+          "description": "Horizontal unit direction in which a fitted cable leaves the attachment."
+        },
+        "clearanceRadius": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000000 }
+      }
+    },
+    "attachmentRef": {
+      "type": "object",
+      "required": ["buildingId", "attachment"],
+      "additionalProperties": false,
+      "properties": {
+        "buildingId": { "type": "string", "minLength": 1 },
+        "attachment": {
+          "oneOf": [
+            { "$ref": "#/$defs/omnidirectionalAttachment" },
+            { "$ref": "#/$defs/directionalAttachment" }
+          ]
+        }
+      }
+    },
+    "volume": {
+      "type": "object",
+      "required": ["id", "kind", "footprint", "bottom", "top"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["building", "facade", "roof", "opening", "access", "equipment", "reservation"] },
+        "buildingId": { "type": "string", "minLength": 1 },
+        "footprint": {
+          "type": "array",
+          "minItems": 3,
+          "items": { "$ref": "#/$defs/point2" },
+          "description": "Simple CCW ring, first point not repeated."
+        },
+        "bottom": { "type": "number", "minimum": -1000000000, "maximum": 1000000000 },
+        "top": { "type": "number", "minimum": -1000000000, "maximum": 1000000000 },
+        "clearance": { "type": "number", "minimum": 0, "maximum": 1000000000, "default": 0 }
+      }
+    },
+    "thicknessRange": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "max": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }
+      }
+    },
+    "slackRatioRange": {
+      "type": "object",
+      "required": ["min", "max"],
+      "additionalProperties": false,
+      "properties": {
+        "min": { "type": "number", "exclusiveMinimum": 1, "maximum": 1.25 },
+        "max": { "type": "number", "exclusiveMinimum": 1, "maximum": 1.25 }
+      }
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "minDistance": { "type": "number", "minimum": 0, "maximum": 1000000000 },
+        "maxDistance": { "type": "number", "exclusiveMinimum": 0, "maximum": 1000000000 },
+        "selectionRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "maxSpans": { "type": "integer", "minimum": 0, "maximum": 2048 },
+        "maxPerAttachment": { "type": "integer", "minimum": 1, "maximum": 4 },
+        "thickness": { "$ref": "#/$defs/thicknessRange" },
+        "slackRatio": { "$ref": "#/$defs/slackRatioRange" },
+        "directionToleranceDegrees": { "type": "number", "minimum": 0, "maximum": 90 },
+        "pathSegments": { "type": "integer", "minimum": 2, "maximum": 128 }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/rooftop-span-output",
+  "title": "Rooftop span output",
+  "description": "Deterministic accepted subset of collision-free rooftop antenna spans. An empty spans array is valid.",
+  "type": "object",
+  "required": ["meta", "spans"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["seed", "schemaVersion", "generatorVersion"],
+      "additionalProperties": false,
+      "properties": {
+        "seed": { "type": "string", "minLength": 1 },
+        "schemaVersion": { "const": "1.0.0", "description": "Version of this rooftop span document format." },
+        "generatorVersion": { "type": "string", "minLength": 1, "description": "Connections package release that generated this document." }
+      }
+    },
+    "spans": {
+      "type": "array",
+      "items": { "$ref": "urbe/connections/rooftop-span" }
+    }
+  }
+}

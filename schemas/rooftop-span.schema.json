@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urbe/connections/rooftop-span",
+  "title": "Rooftop antenna span",
+  "description": "One accepted interbuilding cable. The catenary coefficients are authoritative; path is a deterministic rendering polyline evaluated from that same curve.",
+  "type": "object",
+  "required": ["id", "a", "b", "catenary", "path", "thickness", "sag", "slack", "slackRatio", "length"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "a": { "$ref": "#/$defs/endpoint" },
+    "b": { "$ref": "#/$defs/endpoint" },
+    "catenary": { "$ref": "#/$defs/catenary" },
+    "path": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 129,
+      "items": { "$ref": "#/$defs/point3" }
+    },
+    "thickness": { "type": "number", "exclusiveMinimum": 0, "description": "Cable diameter in meters." },
+    "sag": { "type": "number", "minimum": 0, "description": "Maximum vertical distance below the straight endpoint chord." },
+    "slack": { "type": "number", "exclusiveMinimum": 0, "description": "Catenary length minus straight endpoint distance." },
+    "slackRatio": { "type": "number", "exclusiveMinimum": 1 },
+    "length": { "type": "number", "exclusiveMinimum": 0, "description": "Exact catenary arc length in meters." }
+  },
+  "$defs": {
+    "point2": {
+      "type": "array",
+      "prefixItems": [{ "type": "number" }, { "type": "number" }],
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "point3": {
+      "type": "array",
+      "prefixItems": [{ "type": "number" }, { "type": "number" }, { "type": "number" }],
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["buildingId", "attachmentId", "position"],
+      "additionalProperties": false,
+      "properties": {
+        "buildingId": { "type": "string", "minLength": 1 },
+        "attachmentId": { "type": "string", "minLength": 1 },
+        "position": { "$ref": "#/$defs/point3" }
+      }
+    },
+    "catenary": {
+      "type": "object",
+      "required": ["type", "groundOrigin", "horizontalDirection", "horizontalDistance", "scale", "horizontalOffset", "verticalOffset", "domain"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "catenary" },
+        "groundOrigin": { "$ref": "#/$defs/point2" },
+        "horizontalDirection": { "$ref": "#/$defs/point2", "description": "Unit direction on XZ." },
+        "horizontalDistance": { "type": "number", "exclusiveMinimum": 0 },
+        "scale": { "type": "number", "exclusiveMinimum": 0, "description": "Coefficient a in y(s) = a cosh((s - horizontalOffset) / a) + verticalOffset." },
+        "horizontalOffset": { "type": "number" },
+        "verticalOffset": { "type": "number" },
+        "domain": {
+          "type": "array",
+          "prefixItems": [{ "const": 0 }, { "type": "number", "exclusiveMinimum": 0 }],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      }
+    }
+  }
+}

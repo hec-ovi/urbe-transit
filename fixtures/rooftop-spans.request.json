@@ -1,0 +1,187 @@
+{
+  "seed": "exterior-aa09e43-rooftop-spans",
+  "attachments": [
+    {
+      "buildingId": "p135",
+      "attachment": {
+        "id": "roof-artifact:antenna:2:external:0",
+        "position": [635.7, 136.85, 623.25],
+        "orientation": "omnidirectional",
+        "clearanceRadius": 0.08
+      }
+    },
+    {
+      "buildingId": "p136",
+      "attachment": {
+        "id": "roof-artifact:antenna:2:external:0",
+        "position": [621.35, 81.95, 631.25],
+        "orientation": "omnidirectional",
+        "clearanceRadius": 0.08
+      }
+    },
+    {
+      "buildingId": "p71",
+      "attachment": {
+        "id": "roof-artifact:antenna:2:external:0",
+        "position": [329.1, 25.75, 794.45],
+        "orientation": "omnidirectional",
+        "clearanceRadius": 0.08
+      }
+    },
+    {
+      "buildingId": "p76",
+      "attachment": {
+        "id": "roof-artifact:antenna:2:external:0",
+        "position": [384.35, 27.15, 768.4],
+        "orientation": "omnidirectional",
+        "clearanceRadius": 0.08
+      }
+    }
+  ],
+  "volumes": [
+    {
+      "id": "p135-building",
+      "kind": "building",
+      "buildingId": "p135",
+      "footprint": [[658.84, 623.882], [652.9, 652.384], [629.881, 648.299], [635.786, 615.024]],
+      "bottom": 0,
+      "top": 130
+    },
+    {
+      "id": "p136-building",
+      "kind": "building",
+      "buildingId": "p136",
+      "footprint": [[633.883, 614.293], [627.911, 647.95], [586.477, 640.598], [592.803, 604.754], [593.833, 598.904]],
+      "bottom": 0,
+      "top": 74.95
+    },
+    {
+      "id": "p71-building",
+      "kind": "building",
+      "buildingId": "p71",
+      "footprint": [[357.835, 755.201], [346.408, 820.738], [305.617, 814.039], [327.3, 749.96]],
+      "bottom": 0,
+      "top": 21.3
+    },
+    {
+      "id": "p76-building",
+      "kind": "building",
+      "buildingId": "p76",
+      "footprint": [[417.035, 763.132], [411.655, 793.983], [368.916, 786.531], [374.277, 755.792]],
+      "bottom": 0,
+      "top": 22.5
+    },
+    {
+      "id": "p111-quiet-building",
+      "kind": "building",
+      "buildingId": "p111",
+      "footprint": [[539.096, 149.388], [524.156, 204.87], [482.761, 195.649], [497.396, 153.494], [521.312, 142.957]],
+      "bottom": 0,
+      "top": 36.8
+    },
+    {
+      "id": "p135-roof-access",
+      "kind": "access",
+      "buildingId": "p135",
+      "footprint": [[640.1, 637.494], [641.306, 630.7], [648.1, 631.906], [646.894, 638.7]],
+      "bottom": 130,
+      "top": 132.7,
+      "clearance": 1
+    },
+    {
+      "id": "p136-roof-access",
+      "kind": "access",
+      "buildingId": "p136",
+      "footprint": [[607.817, 620.792], [614.258, 623.267], [611.783, 629.708], [605.342, 627.233]],
+      "bottom": 74.95,
+      "top": 77.4,
+      "clearance": 1
+    },
+    {
+      "id": "p71-roof-access",
+      "kind": "access",
+      "buildingId": "p71",
+      "footprint": [[330.033, 788.461], [331.989, 782.683], [337.767, 784.639], [335.811, 790.417]],
+      "bottom": 21.3,
+      "top": 24.05,
+      "clearance": 1
+    },
+    {
+      "id": "p76-roof-access",
+      "kind": "access",
+      "buildingId": "p76",
+      "footprint": [[395.928, 779.015], [388.835, 777.778], [390.072, 770.685], [397.165, 771.922]],
+      "bottom": 22.5,
+      "top": 25.35,
+      "clearance": 1
+    },
+    {
+      "id": "p111-roof-access",
+      "kind": "access",
+      "buildingId": "p111",
+      "footprint": [[516.478, 171.716], [514.684, 178.378], [508.022, 176.584], [509.816, 169.922]],
+      "bottom": 36.8,
+      "top": 39.35,
+      "clearance": 1
+    },
+    {
+      "id": "p135-penthouse-screen",
+      "kind": "equipment",
+      "buildingId": "p135",
+      "footprint": [[649.05, 627.325], [654.85, 627.325], [654.85, 638.775], [649.05, 638.775]],
+      "bottom": 130,
+      "top": 132.9
+    },
+    {
+      "id": "p136-penthouse-screen",
+      "kind": "equipment",
+      "buildingId": "p136",
+      "footprint": [[594.85, 606.425], [600.25, 606.425], [600.25, 615.775], [594.85, 615.775]],
+      "bottom": 74.95,
+      "top": 78.9
+    },
+    {
+      "id": "p136-cooling-tower",
+      "kind": "equipment",
+      "buildingId": "p136",
+      "footprint": [[605.55, 607.35], [611.05, 607.35], [611.05, 610.55], [605.55, 610.55]],
+      "bottom": 74.95,
+      "top": 78
+    },
+    {
+      "id": "p71-water-tank",
+      "kind": "equipment",
+      "buildingId": "p71",
+      "footprint": [[316.175, 803.275], [320.625, 803.275], [320.625, 806.525], [316.175, 806.525]],
+      "bottom": 21.3,
+      "top": 26.25
+    },
+    {
+      "id": "p71-hvac",
+      "kind": "equipment",
+      "buildingId": "p71",
+      "footprint": [[343.65, 766.15], [344.85, 766.15], [344.85, 767.05], [343.65, 767.05]],
+      "bottom": 21.3,
+      "top": 22
+    },
+    {
+      "id": "p76-water-tank",
+      "kind": "equipment",
+      "buildingId": "p76",
+      "footprint": [[401.425, 767.7], [404.975, 767.7], [404.975, 772], [401.425, 772]],
+      "bottom": 22.5,
+      "top": 27.25
+    }
+  ],
+  "params": {
+    "minDistance": 5,
+    "maxDistance": 80,
+    "selectionRatio": 1,
+    "maxSpans": 2,
+    "maxPerAttachment": 1,
+    "thickness": { "min": 0.035, "max": 0.05 },
+    "slackRatio": { "min": 1.00001, "max": 1.00001 },
+    "directionToleranceDegrees": 30,
+    "pathSegments": 32
+  }
+}
