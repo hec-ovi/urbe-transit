@@ -44,4 +44,4 @@ Anything the toggles ask for that the blueprint cannot feed comes back as an emp
 
 ## In the urbe family
 
-It reads [atlas](../atlas) and feeds three consumers: [simulation](../simulation) walks and rides its networks, [engine](../engine) drives street traffic and pedestrian signals from them, and [exterior](../exterior) carves the apertures it specifies into each building. The full picture lives in [urbe](..).
+It reads [atlas](https://github.com/hec-ovi/urbe-atlas) and feeds three consumers: [simulation](https://github.com/hec-ovi/urbe-population) walks and rides its networks, [engine](https://github.com/hec-ovi/urbe-engine) drives street traffic and pedestrian signals from them, and [exterior](https://github.com/hec-ovi/buildingforge) carves the apertures it specifies into each building. The full picture lives in [urbe](https://github.com/hec-ovi/urbe).
