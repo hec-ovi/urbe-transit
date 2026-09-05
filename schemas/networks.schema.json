@@ -59,9 +59,12 @@
           "items": {
             "type": "object",
             "required": ["id", "edgeId", "index", "speed", "width", "path", "path3", "next", "level"],
+            "dependentRequired": { "sourceDirection": ["sourceOffset"], "sourceOffset": ["sourceDirection"] },
             "properties": {
               "id": { "type": "string" },
               "edgeId": { "type": "string", "description": "atlas street edge" },
+              "sourceDirection": { "enum": ["forward", "backward"], "description": "authored travel direction relative to the Atlas source edge path; absent for legacy lanes" },
+              "sourceOffset": { "type": "number", "description": "authored lane centre offset in metres, positive left of the Atlas source edge path" },
               "index": { "type": "integer", "description": "0 = rightmost in driving direction" },
               "speed": { "type": "number", "description": "m/s limit" },
               "width": { "type": "number" },

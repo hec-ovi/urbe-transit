@@ -99,6 +99,10 @@ export interface Lane {
   index: number
   speed: number
   width: number
+  /** Exact authored travel direction relative to the Atlas source edge. */
+  sourceDirection?: 'forward' | 'backward'
+  /** Authored lane centre offset in metres, positive left of the Atlas source edge. */
+  sourceOffset?: number
   path: V2[]
   /** Exact lane centerline, including ramp breakpoints. */
   path3: V3[]

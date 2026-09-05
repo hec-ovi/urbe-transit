@@ -100,6 +100,8 @@ describe('authored street movement', () => {
       for (const spec of edge.crossSection!.lanes) {
         const lane = lanes.find((candidate) => Math.abs(coordinates(edge, candidate.path[0]).left - spec.offset) < 1e-7)!
         expect(lane.width).toBe(spec.width)
+        expect(lane.sourceDirection).toBe(spec.direction)
+        expect(lane.sourceOffset).toBe(spec.offset)
         const travel = coordinates(edge, lane.path.at(-1)!).along - coordinates(edge, lane.path[0]).along
         expect(travel > 0).toBe(spec.direction === 'forward')
         for (const point of lane.path) expect(Math.abs(coordinates(edge, point).left) + lane.width / 2).toBeLessThanOrEqual(edge.width / 2 + 1e-7)
@@ -111,6 +113,36 @@ describe('authored street movement', () => {
       expect(next.via3.at(-1)).toEqual(byId.get(next.laneId)!.path3[0])
       for (const point of next.via) expect(atlas.streets.edges.some((edge) => { const c = coordinates(edge, point); return c.along >= -1e-7 && Math.abs(c.left) <= edge.width / 2 + 1e-7 })).toBe(true)
     }
+  })
+
+  it('preserves one-way direction through reversed source fragments alongside two- and four-lane arms', () => {
+    const atlas = crossAtlas()
+    atlas.streets.crossings = []
+    const directions: ('forward' | 'backward')[][] = [['forward'], ['backward', 'forward'], ['backward'], ['backward', 'backward', 'forward', 'forward']]
+    for (const [i, edge] of atlas.streets.edges.entries()) {
+      edge.width = directions[i].length * 3.5
+      edge.crossSection!.shoulders = { left: 0, right: 0 }
+      edge.crossSection!.runId = i % 2 === 0 ? 'one-way' : `run-${i}`
+      edge.crossSection!.lanes = directions[i].map((direction, index) => ({ direction, width: 3.5, offset: edge.width / 2 - 3.5 * (index + .5) }))
+    }
+    const { road } = generate(atlas, params).networks
+    for (const [i, edge] of atlas.streets.edges.entries()) {
+      const lanes = road.lanes.filter((lane) => lane.edgeId === edge.id)
+      expect(lanes).toHaveLength(directions[i].length)
+      for (const spec of edge.crossSection!.lanes) {
+        const lane = lanes.find((candidate) => Math.abs(coordinates(edge, candidate.path[0]).left - spec.offset) < 1e-7)!
+        expect(lane.width).toBe(3.5)
+        expect(lane.sourceDirection).toBe(spec.direction)
+        expect(lane.sourceOffset).toBe(spec.offset)
+        expect(coordinates(edge, lane.path.at(-1)!).along > coordinates(edge, lane.path[0]).along).toBe(spec.direction === 'forward')
+      }
+    }
+    const incoming = road.lanes.find((lane) => lane.id === 'e2b0')!
+    const outgoing = road.lanes.find((lane) => lane.id === 'e0f0')!
+    const through = incoming.next.find((next) => next.laneId === outgoing.id)!
+    expect(through.via3[0]).toEqual(incoming.path3.at(-1))
+    expect(through.via3.at(-1)).toEqual(outgoing.path3[0])
+    expect(road.lanes.some((lane) => lane.id === 'e2f0' || lane.id === 'e0b0')).toBe(false)
   })
 
   it('walks each clear band and connects crossings at the actual run instead of a distant corner', () => {
@@ -137,7 +169,7 @@ describe('authored street movement', () => {
     for (const mutate of [
       (edge: StreetEdge) => { edge.crossSection!.lanes[0].offset += .1 },
       (edge: StreetEdge) => { edge.crossSection!.sidewalks.left.bands.walking += .2 },
-      (edge: StreetEdge) => { edge.crossSection!.lanes[0].direction = 'forward' },
+      (edge: StreetEdge) => { edge.crossSection!.lanes[0].direction = 'sideways' as 'forward' },
     ]) {
       const atlas = crossAtlas(); mutate(atlas.streets.edges[0])
       expect(() => generate(atlas, params)).toThrowError(expect.objectContaining({ code: 'E_ATLAS_INVALID', path: 'atlas.streets.edges.e0.crossSection' }))

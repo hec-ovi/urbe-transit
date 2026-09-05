@@ -56,6 +56,7 @@ export class RoadBuilder {
         const sharesBoundary = (other: typeof spec | undefined): boolean => !!other && Math.abs(Math.abs(other.offset - spec.offset) - (other.width + spec.width) / 2) < 1e-6
         const lane: Lane = {
           id, edgeId, index: i, speed: SPEED[e.class] ?? SPEED.street, width: spec.width,
+          ...(e.crossSection ? { sourceDirection: dir === 'f' ? 'forward' as const : 'backward' as const, sourceOffset: (dir === 'f' ? -1 : 1) * spec.offset } : {}),
           path: path3.map((point) => [point[0], point[2]]), path3, next: [], level: Math.max(...path3.map((point) => point[1])),
           ...(sharesBoundary(left) ? { left: { laneId: `${edgeId}${dir}${i + 1}`, change: true } } : {}),
           ...(sharesBoundary(right) ? { right: { laneId: `${edgeId}${dir}${i - 1}`, change: true } } : {}),
