@@ -79,6 +79,9 @@ export interface WalkEdge {
   linkId?: string
   stationId?: string
   accessIndex?: number
+  /** Atlas functional walking-band owner, for authored-section sidewalk runs. */
+  edgeId?: string
+  side?: 'left' | 'right'
 }
 
 export interface LaneConnection {

@@ -14,10 +14,11 @@ export class StreetIndex {
   }
 
   /** How far geometry pulls back from a node center: half the widest incident street plus clearance. */
-  setback(nodeId: string): number {
+  setback(nodeId: string, edgeId?: string): number {
     const n = this.nodes.get(nodeId)!
+    const incident = edgeId ? this.connection(nodeId, edgeId).edgeIds : n.edgeIds
     let w = 0
-    for (const eid of n.edgeIds) w = Math.max(w, this.edges.get(eid)?.width ?? 0)
+    for (const eid of incident) w = Math.max(w, this.edges.get(eid)?.width ?? 0)
     return w / 2 + 1.5
   }
 

@@ -1,5 +1,5 @@
 /**
- * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts (v0.13.2).
+ * Consumed subset of the atlas CityBlueprint, mirrored from ../atlas/schema/blueprint.ts.
  * Units: meters. Ground plane XZ, +Y up; 2D points are [x, z]; heights along +Y.
  * Polygons: CCW rings, first point not repeated.
  */
@@ -35,7 +35,14 @@ export interface AtlasBlueprint {
   streets: StreetGraph
   parcels: Parcel[]
   transit: Transit
-  volumetric: { buildings: BuildingVolume[] }
+  volumetric: { buildings: BuildingVolume[]; ground?: GroundSurface[] }
+}
+
+export interface GroundSurface {
+  surface: 'roadway' | 'curb' | 'sidewalk' | 'block' | 'open'
+  polygon: Polygon
+  bottom: number
+  top: number
 }
 
 export interface District {
@@ -82,16 +89,38 @@ export interface StreetEdge {
   width: number
   /** Per side, 0 = none. Left/right relative to path direction. */
   sidewalk: { left: number; right: number }
+  /** Authored grade lanes and functional sidewalks; absent on highways and older artifacts. */
+  crossSection?: StreetCrossSection
   /** Maximum surface height above the ground plane. */
   level: number
   /** Exact height knots measured along path from `from` to `to`. */
   elevationProfile: ElevationPoint[]
 }
 
+export interface SidewalkBands {
+  curb: number
+  border: number
+  furnishing: number
+  walking: number
+  frontage: number
+}
+
+export interface StreetCrossSection {
+  runId: string
+  profileId: string
+  /** Left to right across the directed path; positive offset is left. */
+  lanes: { direction: 'forward' | 'backward'; width: number; offset: number }[]
+  shoulders: { left: number; right: number }
+  sidewalks: {
+    left: { profileId: string; bands: SidewalkBands }
+    right: { profileId: string; bands: SidewalkBands }
+  }
+}
+
 export interface Crossing {
   nodeId: string
   /** Each segment spans the roadway from one sidewalk to another. */
-  segments: { from: Vec2; to: Vec2 }[]
+  segments: { from: Vec2; to: Vec2; edgeId?: string; width?: number }[]
 }
 
 export interface Parcel {
@@ -138,6 +167,7 @@ export interface Station {
   position: Vec2
   districtId: string
   entrances: Vec2[]
+  entranceBays?: EntranceBay[]
   /** Platform height: 0 at grade, -12 for a subway. Entrances stay at grade. */
   level: number
   /** Plan footprint of the platform. */
@@ -148,6 +178,16 @@ export interface Station {
   shafts: Shaft[]
   /** One exact 3D route per underground entrance, in entrance order. */
   accessPaths: StationAccessPath[]
+}
+
+export interface EntranceBay {
+  edgeId: string
+  side: 'left' | 'right'
+  distance: number
+  footprint: Polygon
+  shaft: Polygon
+  /** Exact ground route from walking-band center to the matching station entrance. */
+  approach: Polyline
 }
 
 export interface StationAccessPath {

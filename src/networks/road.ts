@@ -6,9 +6,9 @@ import type { Lane, LaneConnection } from '../types/output'
 import { StreetIndex, heading, wrap180 } from './street-util'
 import type { SignalIndex } from './signals'
 import { liftStreetPath } from './elevation'
+import { drivingLanes } from './sections'
+import { offsetStreetPath } from './offset'
 
-/** Alleys are pedestrian: no car lanes at all. */
-const LANES_PER_DIR: Record<StreetClass, number> = { alley: 0, street: 1, road: 2, highway: 3 }
 /** m/s: 30, 50, 100 km/h. */
 const SPEED: Record<StreetClass, number> = { alley: 0, street: 8.33, road: 13.9, highway: 27.8 }
 const VIA_SAMPLES = 6
@@ -37,29 +37,31 @@ export class RoadBuilder {
 
   private buildEdgeLanes(edgeId: string): void {
     const e = this.streets.edges.get(edgeId)!
-    // A class this box does not know yet drives like a street; a class with no lanes, or with no
-    // carriageway to put them on, carries no cars.
-    const perDir = LANES_PER_DIR[e.class] ?? 1
-    if (perDir < 1 || e.width <= 0) return
-    const laneWidth = e.width / (2 * perDir)
-    this.laneCount.set(edgeId, perDir)
+    const specs = drivingLanes(e)
     for (const dir of ['f', 'b'] as const) {
+      const directed = specs.filter((lane) => lane.direction === dir)
+      const perDir = directed.length
       const path = dir === 'f' ? e.path : [...e.path].reverse()
       const [startNode, endNode] = dir === 'f' ? [e.from, e.to] : [e.to, e.from]
-      for (let i = 0; i < perDir; i++) {
-        const off = e.width / 2 - laneWidth * (i + 0.5)
-        const offsetPath = offsetPolyline(path, off)
-        const trimmed = trimPolyline(offsetPath, this.streets.setback(startNode), this.streets.setback(endNode))
+      for (const spec of directed) {
+        const i = spec.index
+        const offsetPath = (e.crossSection ? offsetStreetPath : offsetPolyline)(path, spec.offset)
+        const authority = e.crossSection ? e.id : undefined
+        const trimmed = trimPolyline(offsetPath, this.streets.setback(startNode, authority), this.streets.setback(endNode, authority))
         if (trimmed.length < 2) continue
         const id = `${edgeId}${dir}${i}`
         const path3 = liftStreetPath(e, trimmed)
+        const left = directed[i + 1]
+        const right = directed[i - 1]
+        const sharesBoundary = (other: typeof spec | undefined): boolean => !!other && Math.abs(Math.abs(other.offset - spec.offset) - (other.width + spec.width) / 2) < 1e-6
         const lane: Lane = {
-          id, edgeId, index: i, speed: SPEED[e.class], width: laneWidth,
+          id, edgeId, index: i, speed: SPEED[e.class] ?? SPEED.street, width: spec.width,
           path: path3.map((point) => [point[0], point[2]]), path3, next: [], level: Math.max(...path3.map((point) => point[1])),
-          ...(i + 1 < perDir ? { left: { laneId: `${edgeId}${dir}${i + 1}`, change: true } } : {}),
-          ...(i > 0 ? { right: { laneId: `${edgeId}${dir}${i - 1}`, change: true } } : {}),
+          ...(sharesBoundary(left) ? { left: { laneId: `${edgeId}${dir}${i + 1}`, change: true } } : {}),
+          ...(sharesBoundary(right) ? { right: { laneId: `${edgeId}${dir}${i - 1}`, change: true } } : {}),
         }
         this.lanes.push(lane)
+        this.laneCount.set(id, perDir)
         this.arriving.set(endNode, [...(this.arriving.get(endNode) ?? []), lane])
         this.departing.set(startNode, [...(this.departing.get(startNode) ?? []), lane])
       }
@@ -108,8 +110,8 @@ export class RoadBuilder {
 
   /** Straight from any lane to the matching index; right turns from the rightmost, left from the leftmost. */
   private laneMayTurn(inLane: Lane, outLane: Lane, turn: 's' | 'l' | 'r'): boolean {
-    const inMax = (this.laneCount.get(inLane.edgeId) ?? 1) - 1
-    const outMax = (this.laneCount.get(outLane.edgeId) ?? 1) - 1
+    const inMax = (this.laneCount.get(inLane.id) ?? 1) - 1
+    const outMax = (this.laneCount.get(outLane.id) ?? 1) - 1
     if (turn === 's') return outLane.index === Math.min(inLane.index, outMax)
     if (turn === 'r') return inLane.index === 0 && outLane.index === 0
     return inLane.index === inMax && outLane.index === outMax

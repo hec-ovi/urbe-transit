@@ -2,6 +2,8 @@ import { ConnectionsError } from '../core/errors'
 import { arcLengths, pointInPolygon, polygonArea, segmentPointDistance } from '../core/polygon'
 import type { AtlasBlueprint, Station, StreetEdge, Vec2, Vec3 } from '../types/atlas'
 import { edgeLevelAtNode } from '../networks/elevation'
+import { validateCrossSection } from './sections'
+import { validateEntranceBays } from './entrance-bays'
 
 const EPS = 1e-6
 
@@ -126,6 +128,7 @@ export function validateAtlas(atlas: AtlasBlueprint): void {
     if (!(left >= 0) || !(right >= 0)) fail(`edge ${e.id} sidewalk widths must not be negative`, 'atlas.streets.edges')
     if (!(e.width + left + right > 0)) fail(`edge ${e.id} has no ground: carriageway and sidewalks are all zero`, 'atlas.streets.edges')
     validateElevationProfile(e)
+    validateCrossSection(e)
   }
   const edgeById = new Map(atlas.streets.edges.map((edge) => [edge.id, edge]))
   validateNodeConnections(atlas, edgeById)
@@ -173,7 +176,10 @@ export function validateAtlas(atlas: AtlasBlueprint): void {
     ...(atlas.transit?.trainStations ?? []).map((s) => s.id),
     ...(atlas.transit?.subwayStations ?? []).map((s) => s.id),
   ])
-  for (const station of [...(atlas.transit?.trainStations ?? []), ...(atlas.transit?.subwayStations ?? [])]) validateStation(station)
+  for (const station of [...(atlas.transit?.trainStations ?? []), ...(atlas.transit?.subwayStations ?? [])]) {
+    validateStation(station)
+    validateEntranceBays(station, edgeById)
+  }
   for (const line of [...(atlas.transit?.trainLines ?? []), ...(atlas.transit?.subwayLines ?? [])]) {
     if (line.stationIds.length < 2) fail(`line ${line.id} needs 2+ stations`, 'atlas.transit')
     for (const id of line.stationIds) if (!stationIds.has(id)) fail(`line ${line.id} references missing station ${id}`, 'atlas.transit')

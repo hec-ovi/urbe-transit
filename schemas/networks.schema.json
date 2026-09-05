@@ -42,7 +42,9 @@
               "signal": { "$ref": "#/$defs/signalRef", "description": "crossings only: walk is legal while state char is G" },
               "linkId": { "type": "string", "description": "kind link only: the inter-building link walked over or through" },
               "stationId": { "type": "string", "description": "station access and platform edges only" },
-              "accessIndex": { "type": "integer", "minimum": 0, "description": "atlas station access path index" }
+              "accessIndex": { "type": "integer", "minimum": 0, "description": "atlas station access path index" },
+              "edgeId": { "type": "string", "description": "atlas edge owning an authored functional sidewalk run" },
+              "side": { "enum": ["left", "right"], "description": "directed street side of an authored sidewalk run" }
             }
           }
         }
