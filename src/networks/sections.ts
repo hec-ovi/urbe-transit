@@ -29,8 +29,9 @@ export function drivingLanes(edge: StreetEdge): DrivingLane[] {
 
 /** Signed right offset and clear width of one pedestrian walking band. */
 export function walkingBand(edge: StreetEdge, side: 'left' | 'right'): { offset: number; width: number } {
-  const bands = edge.crossSection?.sidewalks[side].bands
-  const width = bands?.walking ?? edge.sidewalk[side]
-  const inset = bands ? bands.curb + bands.border + bands.furnishing : 0
+  const section = edge.crossSection?.sidewalks[side], bands = section?.bands
+  const interval = section?.geometry?.intervals.find((interval) => interval.role === 'walking')
+  const width = interval ? interval.end - interval.start : bands?.walking ?? edge.sidewalk[side]
+  const inset = interval?.start ?? (bands ? bands.curb + bands.border + bands.furnishing : 0)
   return { width, offset: (side === 'right' ? 1 : -1) * (edge.width / 2 + inset + width / 2) }
 }

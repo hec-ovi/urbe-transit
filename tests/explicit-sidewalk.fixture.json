@@ -1,0 +1,204 @@
+{
+  "id": "e0",
+  "class": "road",
+  "from": "n0",
+  "to": "n1",
+  "path": [
+    [
+      29,
+      29.5
+    ],
+    [
+      150.5,
+      29.5
+    ]
+  ],
+  "width": 14,
+  "sidewalk": {
+    "left": 6.5,
+    "right": 2.5
+  },
+  "level": 0,
+  "elevationProfile": [
+    {
+      "distance": 0,
+      "level": 0
+    },
+    {
+      "distance": 121.5,
+      "level": 0
+    }
+  ],
+  "crossSection": {
+    "runId": "sr0",
+    "profileId": "avenue",
+    "lanes": [
+      {
+        "direction": "backward",
+        "width": 3.5,
+        "offset": 5.25
+      },
+      {
+        "direction": "backward",
+        "width": 3.5,
+        "offset": 1.75
+      },
+      {
+        "direction": "forward",
+        "width": 3.5,
+        "offset": -1.75
+      },
+      {
+        "direction": "forward",
+        "width": 3.5,
+        "offset": -5.25
+      }
+    ],
+    "shoulders": {
+      "left": 0,
+      "right": 0
+    },
+    "sidewalks": {
+      "left": {
+        "profileId": "broad",
+        "bands": {
+          "curb": 0.2,
+          "border": 1,
+          "furnishing": 1,
+          "walking": 3,
+          "frontage": 1
+        },
+        "geometry": {
+          "version": "1.0.0",
+          "edge": {
+            "curbRise": 0.2,
+            "gutter": {
+              "width": 0.3,
+              "lip": {
+                "width": 0.02,
+                "height": 0.02,
+                "side": "road"
+              }
+            }
+          },
+          "intervals": [
+            {
+              "role": "gutter-lip",
+              "start": 0,
+              "end": 0.02,
+              "top": 0.02
+            },
+            {
+              "role": "gutter",
+              "start": 0.02,
+              "end": 0.3,
+              "top": 0
+            },
+            {
+              "role": "curb",
+              "start": 0.3,
+              "end": 0.5,
+              "top": 0.2
+            },
+            {
+              "role": "border",
+              "start": 0.5,
+              "end": 1.5,
+              "top": 0.2
+            },
+            {
+              "role": "furnishing",
+              "start": 1.5,
+              "end": 2.5,
+              "top": 0.2
+            },
+            {
+              "role": "walking",
+              "start": 2.5,
+              "end": 5.5,
+              "top": 0.2
+            },
+            {
+              "role": "frontage",
+              "start": 5.5,
+              "end": 6.5,
+              "top": 0.2
+            }
+          ],
+          "pavedWidth": 6,
+          "totalWidth": 6.5
+        }
+      },
+      "right": {
+        "profileId": "compact",
+        "bands": {
+          "curb": 0.2,
+          "border": 0,
+          "furnishing": 0,
+          "walking": 2,
+          "frontage": 0
+        },
+        "geometry": {
+          "version": "1.0.0",
+          "edge": {
+            "curbRise": 0.2,
+            "gutter": {
+              "width": 0.3,
+              "lip": {
+                "width": 0.02,
+                "height": 0.02,
+                "side": "road"
+              }
+            }
+          },
+          "intervals": [
+            {
+              "role": "gutter-lip",
+              "start": 0,
+              "end": 0.02,
+              "top": 0.02
+            },
+            {
+              "role": "gutter",
+              "start": 0.02,
+              "end": 0.3,
+              "top": 0
+            },
+            {
+              "role": "curb",
+              "start": 0.3,
+              "end": 0.5,
+              "top": 0.2
+            },
+            {
+              "role": "border",
+              "start": 0.5,
+              "end": 0.5,
+              "top": 0.2
+            },
+            {
+              "role": "furnishing",
+              "start": 0.5,
+              "end": 0.5,
+              "top": 0.2
+            },
+            {
+              "role": "walking",
+              "start": 0.5,
+              "end": 2.5,
+              "top": 0.2
+            },
+            {
+              "role": "frontage",
+              "start": 2.5,
+              "end": 2.5,
+              "top": 0.2
+            }
+          ],
+          "pavedWidth": 2,
+          "totalWidth": 2.5
+        }
+      }
+    }
+  }
+}

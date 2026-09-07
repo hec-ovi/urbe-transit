@@ -25,6 +25,8 @@ Street classes come from atlas and the list is additive: `alley` carries the mos
 
 Optional street `crossSection` data supplies exact lane directions, widths, offsets, shoulders and independent sidewalk bands. Positive lane offset is left of the directed street; lanes are listed left to right. Sidewalk bands run curb, border, furnishing, walking, frontage. Highways use their existing highway authority and omit cross sections. Optional station `entranceBays` supply an exact approach from a named street side's walking band to its shaft entrance. Authoritative `volumetric.ground` paving owns junction walk space; its coordinate grid is 1 mm.
 
+Optional sidewalk `geometry` version `1.0.0` supplies ordered gutter-lip, gutter and band intervals. Side totals include the gutter; paved totals exclude gutter and curb. Admission checks all interval dimensions and heights against the side profile. Walking offsets read the exact published walking interval.
+
 Conventions (project wide): units meters, ground plane XZ, +Y up, 2D points [x, z], 3D points [x, y, z], polygons CCW.
 
 ### Rooftop span request

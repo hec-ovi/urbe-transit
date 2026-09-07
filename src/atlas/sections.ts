@@ -1,5 +1,6 @@
 import { ConnectionsError } from '../core/errors'
 import type { StreetEdge } from '../types/atlas'
+import { validateSidewalkGeometry } from './sidewalk-geometry'
 
 const EPS = 1e-6
 const nonnegative = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value) && value >= 0
@@ -30,6 +31,7 @@ export function validateCrossSection(edge: StreetEdge): void {
       if (!nonnegative(width)) fail('street sidewalk bands must be finite non-negative widths')
       total += width
     }
-    if (Math.abs(total - edge.sidewalk[side]) > EPS) fail('street sidewalk bands must equal the side total')
+    if (sidewalk.geometry !== undefined) validateSidewalkGeometry(sidewalk, edge.sidewalk[side], fail)
+    else if (Math.abs(total - edge.sidewalk[side]) > EPS) fail('street sidewalk bands must equal the side total')
   }
 }

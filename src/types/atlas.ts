@@ -39,7 +39,7 @@ export interface AtlasBlueprint {
 }
 
 export interface GroundSurface {
-  surface: 'roadway' | 'curb' | 'sidewalk' | 'block' | 'open'
+  surface: 'roadway' | 'curb' | 'gutter' | 'sidewalk' | 'block' | 'open'
   polygon: Polygon
   bottom: number
   top: number
@@ -105,6 +105,23 @@ export interface SidewalkBands {
   frontage: number
 }
 
+export type SidewalkIntervalRole = keyof SidewalkBands | 'gutter' | 'gutter-lip'
+
+export interface SidewalkGeometry {
+  version: '1.0.0'
+  edge: { curbRise: number; gutter: { width: number; lip: { width: number; height: number; side: 'road' } } }
+  pavedWidth: number
+  totalWidth: number
+  /** Ordered outward from the carriageway edge; top is relative to roadway height. */
+  intervals: { role: SidewalkIntervalRole; start: number; end: number; top: number }[]
+}
+
+export interface SidewalkSection {
+  profileId: string
+  bands: SidewalkBands
+  geometry?: SidewalkGeometry
+}
+
 export interface StreetCrossSection {
   runId: string
   profileId: string
@@ -112,8 +129,8 @@ export interface StreetCrossSection {
   lanes: { direction: 'forward' | 'backward'; width: number; offset: number }[]
   shoulders: { left: number; right: number }
   sidewalks: {
-    left: { profileId: string; bands: SidewalkBands }
-    right: { profileId: string; bands: SidewalkBands }
+    left: SidewalkSection
+    right: SidewalkSection
   }
 }
 
