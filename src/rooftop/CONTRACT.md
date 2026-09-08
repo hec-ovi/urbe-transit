@@ -4,7 +4,7 @@ Purpose: fits a restrained deterministic subset of antenna cables between stable
 
 ## In
 
-`generateRooftopSpans(request)` takes [the request schema](../../schemas/rooftop-span-request.schema.json). The caller supplies the complete attachment and closed vertical-prism obstacle scene. No sibling runtime state is read.
+`generateRooftopSpans(request)` takes [the request schema](../../schemas/rooftop-span-request.schema.json). The caller supplies the complete attachment and closed vertical-prism obstacle scene, without an attachment or volume count cap. `maxSpans` accepts a nonnegative safe integer. No sibling runtime state is read.
 
 ## Out
 
@@ -20,6 +20,7 @@ Purpose: fits a restrained deterministic subset of antenna cables between stable
 - Directional attachments face their partner within tolerance.
 - Selection obeys distance, ratio, endpoint-use and total caps. Empty output is valid.
 - Collision is proved over the continuous catenary against exact ground overlap intervals and analytic height bounds. Samples never decide acceptance.
+- Spatial queries include complete obstacle footprints and their clearance, regardless of size or center. Fitting follows global seeded pair priority and tests all overlapping obstacles before accepting each span.
 - A touching or unproved span is omitted without clipping.
 
 ## Depends on

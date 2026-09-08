@@ -1,7 +1,8 @@
 import { Rng } from '../core/rng'
 import type { V2 } from '../core/vec'
 import { CatenaryCurve } from './catenary'
-import { attachmentClearanceBlocked, curveMeetsVolume } from './collision'
+import { ObstacleScene } from './obstacle-scene'
+import { SpatialIndex } from './spatial-index'
 import type {
   ResolvedRooftopSpanParams,
   RooftopAttachmentRef,
@@ -15,6 +16,9 @@ interface Candidate {
   priority: number
   a: RooftopAttachmentRef
   b: RooftopAttachmentRef
+}
+
+interface FittedCandidate extends Candidate {
   curve: CatenaryCurve
   thickness: number
 }
@@ -87,13 +91,26 @@ function buildCandidate(
     return null
   }
 
-  const thickness = seededValue(request.seed, key, 'thickness', params.thickness)
+  return { key, priority, a, b }
+}
+
+function fitCandidate(
+  candidate: Candidate,
+  seed: string,
+  params: ResolvedRooftopSpanParams,
+  scene: ObstacleScene,
+): FittedCandidate | null {
+  const { key, a, b } = candidate
+  const start = a.attachment.position
+  const end = b.attachment.position
+  const horizontalDistance = Math.hypot(end[0] - start[0], end[2] - start[2])
+  const thickness = seededValue(seed, key, 'thickness', params.thickness)
   const cableRadius = thickness / 2
   if (horizontalDistance <= a.attachment.clearanceRadius + b.attachment.clearanceRadius + thickness) return null
-  if (attachmentClearanceBlocked(a, cableRadius, request.volumes)) return null
-  if (attachmentClearanceBlocked(b, cableRadius, request.volumes)) return null
+  if (scene.blocksAttachment(a, cableRadius)) return null
+  if (scene.blocksAttachment(b, cableRadius)) return null
 
-  const slackRatio = seededValue(request.seed, key, 'slack', params.slackRatio)
+  const slackRatio = seededValue(seed, key, 'slack', params.slackRatio)
   const curve = new CatenaryCurve(start, end, slackRatio)
   const coefficients = [
     curve.definition.scale,
@@ -103,11 +120,11 @@ function buildCandidate(
     curve.sag,
   ]
   if (!coefficients.every(Number.isFinite)) return null
-  if (request.volumes.some((volume) => curveMeetsVolume(curve, cableRadius, volume))) return null
-  return { key, priority, a, b, curve, thickness }
+  if (scene.blocksCurve(curve, cableRadius)) return null
+  return { ...candidate, curve, thickness }
 }
 
-function toSpan(candidate: Candidate, pathSegments: number): RooftopSpan {
+function toSpan(candidate: FittedCandidate, pathSegments: number): RooftopSpan {
   const { a, b, curve, thickness } = candidate
   return {
     id: pairId(a, b),
@@ -141,14 +158,19 @@ export function planRooftopSpans(
   params: ResolvedRooftopSpanParams,
 ): RooftopSpan[] {
   if (params.maxSpans === 0 || params.selectionRatio === 0) return []
-  const ordered = [...request.attachments].sort((a, b) =>
-    a.attachment.position[0] - b.attachment.position[0] || compareText(refKey(a), refKey(b)),
-  )
+  const entries = request.attachments.map((ref, order) => ({ ref, order }))
+  const attachments = new SpatialIndex(entries, ({ ref }) => {
+    const [x, , z] = ref.attachment.position
+    return { minX: x, maxX: x, minZ: z, maxZ: z }
+  })
+  const scene = new ObstacleScene(request.volumes)
   const candidates: Candidate[] = []
-  for (let first = 0; first < ordered.length; first++) {
-    for (let second = first + 1; second < ordered.length; second++) {
-      if (ordered[second].attachment.position[0] - ordered[first].attachment.position[0] > params.maxDistance) break
-      const candidate = buildCandidate(ordered[first], ordered[second], request, params)
+  for (const first of entries) {
+    const [x, , z] = first.ref.attachment.position
+    const radius = params.maxDistance
+    for (const second of attachments.query({ minX: x - radius, maxX: x + radius, minZ: z - radius, maxZ: z + radius })) {
+      if (second.order <= first.order) continue
+      const candidate = buildCandidate(first.ref, second.ref, request, params)
       if (candidate !== null) candidates.push(candidate)
     }
   }
@@ -161,7 +183,9 @@ export function planRooftopSpans(
     const bKey = refKey(candidate.b)
     if ((usage.get(aKey) ?? 0) >= params.maxPerAttachment) continue
     if ((usage.get(bKey) ?? 0) >= params.maxPerAttachment) continue
-    selected.push(toSpan(candidate, params.pathSegments))
+    const fitted = fitCandidate(candidate, request.seed, params, scene)
+    if (fitted === null) continue
+    selected.push(toSpan(fitted, params.pathSegments))
     usage.set(aKey, (usage.get(aKey) ?? 0) + 1)
     usage.set(bKey, (usage.get(bKey) ?? 0) + 1)
     if (selected.length >= params.maxSpans) break

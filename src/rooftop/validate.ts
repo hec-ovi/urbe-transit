@@ -190,7 +190,7 @@ function resolveParams(value: unknown): ResolvedRooftopSpanParams {
     minDistance,
     maxDistance,
     selectionRatio: optionalNumber(params, 'selectionRatio', DEFAULTS.selectionRatio, 0, 1),
-    maxSpans: optionalInteger(params, 'maxSpans', DEFAULTS.maxSpans, 0, 2048),
+    maxSpans: optionalInteger(params, 'maxSpans', DEFAULTS.maxSpans, 0, Number.MAX_SAFE_INTEGER),
     maxPerAttachment: optionalInteger(params, 'maxPerAttachment', DEFAULTS.maxPerAttachment, 1, 4),
     thickness: 'thickness' in params
       ? rangeAt(params.thickness, 'request.params.thickness', 0, 1, true)
@@ -211,13 +211,12 @@ export function validateRooftopSpanRequest(request: RooftopSpanRequest): Resolve
   stringAt(root.seed, 'request.seed')
   if (!Array.isArray(root.attachments)) fail('must be an array', 'request.attachments')
   const attachmentValues = root.attachments as unknown[]
-  if (attachmentValues.length > 2048) fail('must contain at most 2048 entries', 'request.attachments')
   if (!Array.isArray(root.volumes)) fail('must be an array', 'request.volumes')
   const volumeValues = root.volumes as unknown[]
-  if (volumeValues.length > 8192) fail('must contain at most 8192 entries', 'request.volumes')
 
   const refs = attachmentValues.map((entry, index) => validateAttachmentRef(entry, `request.attachments[${index}]`))
   const volumes = volumeValues.map((entry, index) => validateVolume(entry, `request.volumes[${index}]`))
+  const owners = new Set(volumes.filter(volume => volume.kind === 'building').map(volume => volume.buildingId))
 
   const refIds = new Set<string>()
   for (let i = 0; i < refs.length; i++) {
@@ -225,7 +224,7 @@ export function validateRooftopSpanRequest(request: RooftopSpanRequest): Resolve
     const id = `${ref.buildingId}\u0000${ref.attachment.id}`
     if (refIds.has(id)) fail('building and attachment ID pair must be unique', `request.attachments[${i}]`)
     refIds.add(id)
-    if (!volumes.some((volume) => volume.kind === 'building' && volume.buildingId === ref.buildingId)) {
+    if (!owners.has(ref.buildingId)) {
       fail('attachment building needs a matching building volume', `request.attachments[${i}].buildingId`)
     }
   }
