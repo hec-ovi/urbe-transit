@@ -2,7 +2,7 @@ import { Rng } from '../core/rng'
 import type { V2 } from '../core/vec'
 import { CatenaryCurve } from './catenary'
 import { ObstacleScene } from './obstacle-scene'
-import { SpatialIndex } from './spatial-index'
+import { SpatialIndex } from '../core/spatial-index'
 import type {
   ResolvedRooftopSpanParams,
   RooftopAttachmentRef,

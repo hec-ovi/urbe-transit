@@ -55,6 +55,7 @@ Anything the toggles request that the atlas cannot feed (subway on, no stations)
 
 ## Invariants
 - Determinism: identical atlas and params, identical output.
+- Link spatial queries preserve original parcel pair order and complete building and street extents. Exact face, obstruction and elevation checks determine acceptance.
 - Face convention: face i of a building is the vertical quad over footprint segment i to i+1; the outward normal points away from the footprint interior. Face-local frame: U along the segment from vertex i, V along +Y.
 - Every aperture lies on its face within bounds, inside the building envelope; every cut polygon vertex lies exactly in the face plane. On one building, two aperture bases are either equal or at least 2.5 m apart, and apertures never overlap.
 - Aperture bases on one building admit a floor stack: exterior pins a floor's walking surface at every base, so the bases plus the floor heights of the parcel type's family leave at least one legal floor count inside the parcel envelope (`minFloors` to `maxFloors` within `maxHeight`). Floor heights and the counting recipe are mirrored from ../exterior/schemas/floor-constants.json in [src/links/stack.ts](src/links/stack.ts). A base that would leave no legal count is refused and the link takes the next one up, or is not built. Wire anchors cut no hole and pin no floor.

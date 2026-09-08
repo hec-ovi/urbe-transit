@@ -1,6 +1,6 @@
 import { attachmentClearanceBlocked, curveMeetsVolume } from './collision'
 import type { CatenaryCurve } from './catenary'
-import { SpatialIndex, type Bounds } from './spatial-index'
+import { SpatialIndex, type Bounds } from '../core/spatial-index'
 import type { RooftopAttachmentRef, RooftopVolume } from './types'
 
 /** Broad-phase bounds only select candidates; continuous collision remains authoritative. */

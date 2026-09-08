@@ -1,6 +1,7 @@
 import { norm2, perp2, scale2, sub2, type V2 } from '../core/vec'
 import { arcLengths, pointAt, segmentPointDistance, segmentsIntersect, trimPolyline } from '../core/polygon'
-import { bbox, grow, overlaps, type Box } from '../core/box'
+import { bbox, grow } from '../core/box'
+import { SpatialIndex } from '../core/spatial-index'
 import type { Rng } from '../core/rng'
 import { StreetIndex } from '../networks/street-util'
 import type { AtlasBlueprint, StreetEdge } from '../types/atlas'
@@ -51,7 +52,7 @@ export class WirePlanner {
   private readonly streets: StreetIndex
   private readonly limits: LinkLimits
   private readonly levels: number[]
-  private readonly boxes = new Map<string, Box>()
+  private readonly spatial: SpatialIndex<StreetEdge>
   private readonly stations: StationVolumes
 
   constructor(
@@ -63,7 +64,10 @@ export class WirePlanner {
     this.streets = new StreetIndex(atlas)
     this.limits = params.links.wire
     this.levels = anchorLevels(this.limits)
-    for (const e of atlas.streets.edges) this.boxes.set(e.id, bbox(e.path))
+    this.spatial = new SpatialIndex(atlas.streets.edges, edge => {
+      const box = bbox(edge.path)
+      return { minX: box.min[0], minZ: box.min[1], maxX: box.max[0], maxZ: box.max[1] }
+    })
     this.stations = new StationVolumes(atlas)
   }
 
@@ -126,8 +130,9 @@ export class WirePlanner {
   private neighbourStreets(edge: StreetEdge, path: V2[], reach: number): V2[][] {
     const box = grow(bbox(path), reach)
     const out: V2[][] = []
-    for (const other of this.atlas.streets.edges) {
-      if (other.id === edge.id || !overlaps(box, this.boxes.get(other.id)!)) continue
+    const candidates = this.spatial.query({ minX: box.min[0], minZ: box.min[1], maxX: box.max[0], maxZ: box.max[1] })
+    for (const other of candidates) {
+      if (other.id === edge.id) continue
       const close = other.path.some((p) => path.some((q, i) => i > 0 && segmentPointDistance(path[i - 1], q, p) <= reach))
       if (close) out.push(other.path)
     }

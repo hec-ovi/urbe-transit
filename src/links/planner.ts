@@ -79,10 +79,12 @@ export class LinkPlanner {
   private collectCandidates(kind: FacingKind, minLen: number, maxLen: number): Candidate[] {
     const out: Candidate[] = []
     const parcels = this.atlas.parcels.filter((p) => this.eligible(kind, p))
+    const order = new Map(parcels.map((parcel, index) => [parcel.id, index]))
     for (let i = 0; i < parcels.length; i++) {
-      for (let j = i + 1; j < parcels.length; j++) {
-        const a = parcels[i]
-        const b = parcels[j]
+      const a = parcels[i]
+      for (const b of this.buildings.neighbours(a.id, maxLen)) {
+        const j = order.get(b.id)
+        if (j === undefined || j <= i) continue
         const ba = this.buildings.bounds(a.id)
         const bb = this.buildings.bounds(b.id)
         if (dist2(ba.c, bb.c) - ba.r - bb.r > maxLen) continue

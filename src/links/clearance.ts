@@ -2,6 +2,7 @@ import type { V2 } from '../core/vec'
 import { arcLengths, segmentPointDistance, segmentSegmentDistance } from '../core/polygon'
 import type { AtlasBlueprint, ElevationPoint } from '../types/atlas'
 import { profileLevelAt } from '../networks/elevation'
+import { SpatialIndex } from '../core/spatial-index'
 
 /**
  * Headroom a link leaves over the street surface it flies over: a lorry (4.5 m) plus the margin
@@ -19,21 +20,31 @@ interface Band {
 
 /** The street ground under a link, and how high that ground runs. */
 export class StreetBands {
-  private readonly bands: Band[]
+  private readonly bands: SpatialIndex<Band>
 
   constructor(atlas: AtlasBlueprint) {
-    this.bands = atlas.streets.edges.map((e) => ({
+    const bands = atlas.streets.edges.map((e) => ({
       half: (e.width + e.sidewalk.left + e.sidewalk.right) / 2,
       path: e.path,
       arcs: arcLengths(e.path),
       profile: e.elevationProfile,
+    }))
+    this.bands = new SpatialIndex(bands, band => ({
+      minX: Math.min(...band.path.map(p => p[0])) - band.half,
+      minZ: Math.min(...band.path.map(p => p[1])) - band.half,
+      maxX: Math.max(...band.path.map(p => p[0])) + band.half,
+      maxZ: Math.max(...band.path.map(p => p[1])) + band.half,
     }))
   }
 
   /** Highest street surface the ground track a-b passes over; null when it passes over none. */
   levelUnder(a: V2, b: V2, halfWidth = 0): number | null {
     let top: number | null = null
-    for (const s of this.bands) {
+    const candidates = this.bands.query({
+      minX: Math.min(a[0], b[0]) - halfWidth, minZ: Math.min(a[1], b[1]) - halfWidth,
+      maxX: Math.max(a[0], b[0]) + halfWidth, maxZ: Math.max(a[1], b[1]) + halfWidth,
+    })
+    for (const s of candidates) {
       for (let i = 1; i < s.path.length; i++) {
         const radius = s.half + halfWidth
         if (segmentSegmentDistance(a, b, s.path[i - 1], s.path[i]) > radius) continue

@@ -5,7 +5,7 @@ type Node<T> = Bounds & { entries?: Entry<T>[]; left?: Node<T>; right?: Node<T> 
 const overlaps = (a: Bounds, b: Bounds): boolean =>
   a.minX <= b.maxX && a.maxX >= b.minX && a.minZ <= b.maxZ && a.maxZ >= b.minZ
 
-/** Complete bounding rectangles, including large or distant-centered obstacles. */
+/** Complete ground-plane bounding rectangles with no size or center restriction. */
 export class SpatialIndex<T> {
   private readonly root?: Node<T>
 
