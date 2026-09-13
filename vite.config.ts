@@ -29,6 +29,6 @@ export default defineConfig({
   plugins: [atlasBlueprint()],
   test: {
     environment: 'jsdom',
-    include: ['tests/**/*.test.ts'],
+    include: ['tests/**/*.test.ts', 'src/networks/junctions/**/*.test.ts'],
   },
 })

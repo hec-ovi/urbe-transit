@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 import { generate } from '../src'
 import type { AtlasBlueprint } from '../src/types/atlas'
+import type { ConnectionsOutput } from '../src/types/output'
 import { linkGround, pinnedFloors, soffitOverStreets, stationApproach, stationVolumes, straddledStreet, wireDensityPerClass } from './helpers'
 import { MIN_CROSSING_CLEARANCE } from '../src/links/clearance'
 import { admissibleFloors } from '../src/links/stack'
@@ -18,7 +19,8 @@ const present = SAMPLES.every((s) => existsSync(resolve(dir, `${s}.json`)))
 
 describe.skipIf(!present).each(SAMPLES)('atlas sample pipeline: %s', (name) => {
   const atlas = load(name)
-  const out = generate(atlas, { seed: 'urbe-x' })
+  let out: ConnectionsOutput
+  beforeAll(() => { out = generate(atlas, { seed: 'urbe-x' }) }, 120000)
 
   it('generates every layer over the real blueprint, deterministically', () => {
     const kinds = new Set(out.links.map((l) => l.kind))

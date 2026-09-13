@@ -4,31 +4,41 @@ import type { StreetEdge } from '../types/atlas'
 import { lineIntersection, offsetStreetPath } from './offset'
 import { PlanCover } from './plan-cover'
 import { segmentPointDistance } from '../core/polygon'
+import { walkingStrip } from './walk-strip'
+import { accessCandidates } from './access-candidates'
 
 /** Pedestrian junction routing stays inside sidewalk land and outside every meeting roadway. */
 export class WalkRegion {
   private readonly cover: PlanCover
   private readonly candidates: V2[]
+  private readonly boundaries: V2[][]
+  private readonly landOnLeft: boolean
 
-  constructor(edges: StreetEdge[], width: number, paving?: V2[][]) {
-    const sidewalks = paving ?? edges.flatMap((edge) => (['left', 'right'] as const).flatMap((side) => {
+  constructor(edges: StreetEdge[], width: number, paving?: V2[][], planning?: { sidewalks: V2[][]; roads: V2[][] }, candidateBoundaries?: V2[][]) {
+    const sidewalks = paving ?? planning?.sidewalks ?? edges.flatMap((edge) => (['left', 'right'] as const).flatMap((side) => {
       if (edge.sidewalk[side] <= 0) return []
       const sign = side === 'right' ? 1 : -1
       const inner = sign * edge.width / 2
       const outer = inner + sign * edge.sidewalk[side]
       return [strip(edge.path, inner, outer)]
     }))
-    const roads = paving ? [] : edges.filter((edge) => edge.width > 0).map((edge) => strip(edge.path, -edge.width / 2, edge.width / 2))
-    this.cover = new PlanCover(sidewalks, roads)
+    const roads = paving ? [] : planning?.roads ?? edges.filter((edge) => edge.width > 0).map((edge) => strip(edge.path, -edge.width / 2, edge.width / 2))
+    this.cover = new PlanCover(sidewalks, roads, paving || planning ? .001 : 0)
     const clearance = width * Math.SQRT1_2
-    this.candidates = [...sidewalks.flatMap((polygon) => routeCandidates(insetVertices(polygon, clearance), width / 20)), ...roads.flatMap((polygon) => routeCandidates(insetVertices(polygon, -clearance), width / 20))]
+    const boundaries = candidateBoundaries ?? sidewalks
+    this.boundaries = boundaries
+    this.landOnLeft = !!paving
+    this.candidates = [...boundaries.flatMap((polygon) => routeCandidates(insetVertices(polygon, clearance, !!paving), width / 20)), ...roads.flatMap((polygon) => routeCandidates(insetVertices(polygon, -clearance), width / 20))]
   }
 
-  route(a: V2, b: V2, width: number, hints: V2[] = []): V2[] | null {
-    const fits = (x: V2, y: V2): boolean => dist2(x, y) < 1e-7 || this.cover.contains(sweptPath(x, y, width))
+  route(a: V2, b: V2, width: number, hints: V2[] = [], endCaps: 'square' | 'butt' = 'square'): V2[] | null {
+    const fits = (x: V2, y: V2): boolean => dist2(x, y) < 1e-7 || this.cover.contains(sweptPath(x, y, width, endCaps === 'square' || x !== a, endCaps === 'square' || y !== b))
+    const complete = (path: V2[]): boolean => walkingStrip(path, width).every(piece => this.cover.contains(piece))
     if (fits(a, b)) return [a, b]
-    for (const hint of hints) if (fits(a, hint) && fits(hint, b)) return [a, hint, b]
-    const points = [a, b, ...hints, ...this.candidates]
+    if (!this.cover.mayConnect(a, b)) return null
+    for (const hint of hints) if (fits(a, hint) && fits(hint, b) && complete([a, hint, b])) return [a, hint, b]
+    const entries = endCaps === 'butt' ? [a, b].flatMap(point => accessCandidates(point, width, this.boundaries, this.landOnLeft)) : []
+    const points = [a, b, ...hints, ...this.candidates, ...entries]
     const distance = points.map(() => Infinity)
     const previous = points.map(() => -1)
     const visited = new Set<number>()
@@ -40,7 +50,7 @@ export class WalkRegion {
       if (current === 1) {
         const path: V2[] = []
         for (let i = current; i >= 0; i = previous[i]) path.unshift(points[i])
-        return path
+        return complete(path) ? path : null
       }
       visited.add(current)
       for (let next = 0; next < points.length; next++) {
@@ -76,18 +86,18 @@ function strip(path: V2[], a: number, b: number): V2[] {
   return [...offsetStreetPath(path, a), ...offsetStreetPath(path, b).reverse()]
 }
 
-/** Square caps enclose the full turning footprint at every polyline vertex. */
-function sweptPath(a: V2, b: V2, width: number): V2[] {
+/** Interior caps reserve turning space; authored access boundaries keep their exact endpoints. */
+function sweptPath(a: V2, b: V2, width: number, capStart: boolean, capEnd: boolean): V2[] {
   const direction = norm2(sub2(b, a))
   const side = scale2(perp2(direction), width / 2)
-  const start = sub2(a, scale2(direction, width / 2))
-  const end = add2(b, scale2(direction, width / 2))
+  const start = capStart ? sub2(a, scale2(direction, width / 2)) : a
+  const end = capEnd ? add2(b, scale2(direction, width / 2)) : b
   return [add2(start, side), add2(end, side), sub2(end, side), sub2(start, side)]
 }
 
-function insetVertices(polygon: V2[], inset: number): V2[] {
+function insetVertices(polygon: V2[], inset: number, landOnLeft = false): V2[] {
   const area = polygon.reduce((sum, p, i) => { const q = polygon[(i + 1) % polygon.length]; return sum + p[0] * q[1] - q[0] * p[1] }, 0)
-  const offset = area > 0 ? -inset : inset
+  const offset = landOnLeft || area > 0 ? -inset : inset
   return polygon.map((point, i) => {
     const before = norm2(sub2(point, polygon[(i + polygon.length - 1) % polygon.length]))
     const after = norm2(sub2(polygon[(i + 1) % polygon.length], point))

@@ -58,6 +58,47 @@ export interface StreetGraph {
   nodes: StreetNode[]
   edges: StreetEdge[]
   crossings: Crossing[]
+  construction?: { planningReservations?: StreetPlanningReservations; junctions?: CrossingJunction[] }
+}
+
+export interface CrossingJunction {
+  id: string
+  groupIds: string[]
+  nodeIds: string[]
+  internalEdgeIds: string[]
+  approaches: JunctionApproach[]
+}
+
+export interface JunctionApproach {
+  groupId: string
+  nodeId: string
+  edgeId: string
+  distance: number
+  station: [number, number]
+  field: Polygon
+  landings: { left: Polygon; right: Polygon }
+  walkingLandings?: { left: Polygon; right: Polygon }
+  cut: { left: Vec2; right: Vec2 }
+}
+
+/** Consumed model metadata; serialized polygons are the planning authority. */
+export interface StreetPlanningReservations {
+  version: '1.0.0' | '1.1.0'
+  model: { id: 'atlas-directed-corridors'; version: '1.0.0' | '1.1.0'; authority: 'edge-local-planning'; units: 'metres'; coordinateGrid: number }
+  edges: EdgePlanningReservations[]
+}
+
+export interface EdgePlanningReservations {
+  edgeId: string
+  roadway: Polygon[]
+  sides: { left: SidePlanningReservation; right: SidePlanningReservation }
+}
+
+export interface SidePlanningReservation {
+  sidewalk: Polygon[]
+  walking: Polygon[]
+  paved?: Polygon[]
+  bands?: Record<Exclude<SidewalkIntervalRole, 'walking'>, Polygon[]>
 }
 
 export interface StreetNode {
@@ -136,8 +177,9 @@ export interface StreetCrossSection {
 
 export interface Crossing {
   nodeId: string
+  junctionId?: string
   /** Each segment spans the roadway from one sidewalk to another. */
-  segments: { from: Vec2; to: Vec2; edgeId?: string; width?: number }[]
+  segments: { from: Vec2; to: Vec2; roadway?: { from: Vec2; to: Vec2 }; edgeId?: string; width?: number }[]
 }
 
 export interface Parcel {

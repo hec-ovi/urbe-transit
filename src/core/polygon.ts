@@ -125,10 +125,10 @@ export function segmentsIntersect(a: V2, b: V2, c: V2, d: V2): boolean {
 }
 
 /** Trim both ends of a polyline by arc length; empty result if too short. */
-export function trimPolyline(path: V2[], startCut: number, endCut: number): V2[] {
+export function trimPolyline(path: V2[], startCut: number, endCut: number, minimumLength = 0.5): V2[] {
   const arcs = arcLengths(path)
   const total = arcs[arcs.length - 1]
-  if (total - startCut - endCut < 0.5) return []
+  if (total - startCut - endCut < minimumLength) return []
   const s0 = startCut
   const s1 = total - endCut
   const out: V2[] = [pointAt(path, arcs, s0)]

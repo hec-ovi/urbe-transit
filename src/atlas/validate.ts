@@ -4,6 +4,7 @@ import type { AtlasBlueprint, Station, StreetEdge, Vec2, Vec3 } from '../types/a
 import { edgeLevelAtNode } from '../networks/elevation'
 import { validateCrossSection } from './sections'
 import { validateEntranceBays } from './entrance-bays'
+import { validatePlanningReservations } from './reservations'
 
 const EPS = 1e-6
 
@@ -132,6 +133,7 @@ export function validateAtlas(atlas: AtlasBlueprint): void {
   }
   const edgeById = new Map(atlas.streets.edges.map((edge) => [edge.id, edge]))
   validateNodeConnections(atlas, edgeById)
+  validatePlanningReservations(atlas)
   for (const c of atlas.streets?.crossings ?? []) {
     if (!nodeIds.has(c.nodeId)) fail(`crossing references missing node ${c.nodeId}`, 'atlas.streets.crossings')
   }
