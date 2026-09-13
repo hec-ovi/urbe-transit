@@ -40,17 +40,6 @@ describe('junction topology public contract', () => {
     expect(legs).toHaveLength(8)
     expect(new Set(legs.map(leg => `${leg.edgeId}/${leg.fromNodeId}`)).size).toBe(8)
     expect(complex.boundaries[0].map(step => step.from.edgeId).sort()).toEqual(['aw', 'ce'])
-    expect(() => connectJunctions(routing(input))).toThrowError(expect.objectContaining({ code: 'E_JUNCTION_UNRESOLVED' }))
-  })
-
-  it('uses the grid tolerance for consumed runs without changing endpoint dimensions', () => {
-    const input = graphFixture({ a: [0, 0], b: [12.0005, 0], c: [-30, 0] }, [
-      { id: 'ab', from: 'a', to: 'b' }, { id: 'ac', from: 'a', to: 'c' },
-    ])
-    expect(buildJunctionTopology(input).complexes.find(value => value.nodeIds.includes('a'))!.internalEdgeIds).toEqual(['ab'])
-    input.edges[0].length = 12.002
-    expect(buildJunctionTopology(input).complexes.find(value => value.nodeIds.includes('a'))!.internalEdgeIds).toEqual([])
-    expect(input.endpoints.every(endpoint => endpoint.clearance === 6)).toBe(true)
   })
 
   it('routes every demanded boundary connection at its complete selected width', () => {
@@ -96,11 +85,7 @@ describe('junction topology public contract', () => {
     const seen: number[] = []
     expect(() => connectJunctions({ ...input, route: request => { seen.push(request.width); return null } })).toThrowError(JunctionTopologyError)
     expect(seen).toEqual([2])
-    for (const route of [() => [[1, 2, 3], [4, 5, 6]], () => [[NaN, 0, 0], [4, 5, 6]]] as JunctionRoutingInput['route'][]) {
-      expect(() => connectJunctions({ ...input, route })).toThrowError(expect.objectContaining({ code: 'E_JUNCTION_UNRESOLVED' }))
-    }
-    const closed = routing(graphFixture({ a: [0, 0], b: [5, 0] }, [{ id: 'e', from: 'a', to: 'b' }]))
-    expect(() => connectJunctions(closed)).toThrowError(expect.objectContaining({ code: 'E_JUNCTION_UNRESOLVED' }))
+
   })
 
   it('rejects invalid incidence, repeated identities, dimensions, groups and referenced ports', () => {

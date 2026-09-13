@@ -15,7 +15,6 @@ interface Candidate {
   b: string
   faceA: Face
   faceB: Face
-  span: number
   score: number
 }
 
@@ -94,7 +93,7 @@ export class LinkPlanner {
         const tw = (TIER_W[kind][a.tier] + TIER_W[kind][b.tier]) / 2
         if (dw < 0.2) continue
         const score = 0.45 * dw + 0.2 * tw + 0.35 * (1 - pair.span / maxLen)
-        out.push({ a: a.id, b: b.id, faceA: pair.faceA, faceB: pair.faceB, span: pair.span, score })
+        out.push({ a: a.id, b: b.id, faceA: pair.faceA, faceB: pair.faceB, score })
       }
     }
     return out

@@ -1,3 +1,4 @@
+import type { PreviewFrame } from '../schema'
 import type { AtlasBlueprint } from '../../types/atlas'
 import type { ConnectionsOutput, LayerId } from '../../types/output'
 import { paintAir, paintAtlas, paintLinks, paintRoad, paintSignals, paintTransit, paintWalk, type Frame } from './painters'
@@ -26,6 +27,7 @@ export class MapView {
   constructor(
     private readonly atlas: AtlasBlueprint,
     private readonly output: ConnectionsOutput,
+    private readonly frameAt: (seconds: number) => PreviewFrame,
     onViewportChange?: (state: ViewportState) => void,
   ) {
     this.onViewportChange = onViewportChange
@@ -98,17 +100,18 @@ export class MapView {
       ],
     }
     paintAtlas(f, this.atlas)
+    const frame = this.frameAt(this.time)
     const on = (id: LayerId) => this.visible.has(id)
     if (on('links.tunnels')) paintLinks(f, this.output, 'tunnel', 'links.tunnels')
-    if (on('walk')) paintWalk(f, this.output, this.time)
+    if (on('walk')) paintWalk(f, this.output, frame)
     if (on('road')) paintRoad(f, this.output)
-    if (on('transit.train')) paintTransit(f, this.output, 'train', 'transit.train', this.time)
-    if (on('transit.subway')) paintTransit(f, this.output, 'subway', 'transit.subway', this.time)
-    if (on('transit.bus')) paintTransit(f, this.output, 'bus', 'transit.bus', this.time)
+    if (on('transit.train')) paintTransit(f, this.output, 'train', 'transit.train', frame)
+    if (on('transit.subway')) paintTransit(f, this.output, 'subway', 'transit.subway', frame)
+    if (on('transit.bus')) paintTransit(f, this.output, 'bus', 'transit.bus', frame)
     if (on('links.wires')) paintLinks(f, this.output, 'wire', 'links.wires')
     if (on('links.acTubes')) paintLinks(f, this.output, 'ac-tube', 'links.acTubes')
     if (on('links.bridges')) paintLinks(f, this.output, 'bridge', 'links.bridges')
-    if (on('signals')) paintSignals(f, this.output, this.atlas, this.time)
+    if (on('signals')) paintSignals(f, this.output, this.atlas, frame)
     if (on('air')) paintAir(f, this.output)
   }
 

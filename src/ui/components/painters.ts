@@ -1,7 +1,6 @@
 import type { AtlasBlueprint } from '../../types/atlas'
 import type { ConnectionsOutput, LayerId, LinkKind, TransitKind } from '../../types/output'
-import { signalStateAt } from '../../networks/signals'
-import { transitVehiclesAt } from '../../networks/transit'
+import type { PreviewFrame } from '../schema'
 import { LAYER_COLORS } from '../colors'
 
 export interface Frame {
@@ -89,8 +88,7 @@ export function paintLinks(f: Frame, out: ConnectionsOutput, kind: LinkKind, lay
   }
 }
 
-export function paintWalk(f: Frame, out: ConnectionsOutput, t: number): void {
-  const signals = new Map(out.networks.signals.map((s) => [s.id, s]))
+export function paintWalk(f: Frame, out: ConnectionsOutput, frame: PreviewFrame): void {
   const plain: P2[][] = []
   const links: P2[][] = []
   const crossings = new Map<string, P2[][]>()
@@ -98,8 +96,7 @@ export function paintWalk(f: Frame, out: ConnectionsOutput, t: number): void {
     if (e.kind === 'crossing') {
       let color = '#e0e0e0'
       if (e.signal) {
-        const s = signals.get(e.signal.signalId)!
-        color = signalStateAt(s, t)[e.signal.linkIndex] === 'G' ? '#7dff8a' : '#ff6b6b'
+        color = frame.signals[e.signal.signalId][e.signal.linkIndex] === 'G' ? '#7dff8a' : '#ff6b6b'
       }
       crossings.set(color, [...(crossings.get(color) ?? []), e.path])
     } else if (e.kind === 'link') {
@@ -124,24 +121,24 @@ export function paintRoad(f: Frame, out: ConnectionsOutput): void {
   }
 }
 
-export function paintSignals(f: Frame, out: ConnectionsOutput, atlas: AtlasBlueprint, t: number): void {
+export function paintSignals(f: Frame, out: ConnectionsOutput, atlas: AtlasBlueprint, frame: PreviewFrame): void {
   const nodes = new Map(atlas.streets.nodes.map((n) => [n.id, n]))
   for (const s of out.networks.signals) {
     const n = nodes.get(s.nodeId)!
-    const state = signalStateAt(s, t)
+    const state = frame.signals[s.id]
     const anyGreen = state.includes('G')
     dot(f, n.position[0], n.position[1], anyGreen ? LAYER_COLORS.signals : '#c25050', 3)
   }
 }
 
-export function paintTransit(f: Frame, out: ConnectionsOutput, kind: TransitKind, layer: LayerId, t: number): void {
+export function paintTransit(f: Frame, out: ConnectionsOutput, kind: TransitKind, layer: LayerId, frame: PreviewFrame): void {
   const color = LAYER_COLORS[layer]
   const routes = out.networks.transit.routes.filter((r) => r.kind === kind)
   for (const r of routes) {
     stroke(f, r.shape.map((p) => [p[0], p[2]] as P2), color, 1.4, kind === 'subway' ? [5, 3] : [])
     for (const s of r.stops) dot(f, s.x, s.z, color, 2.2)
   }
-  for (const v of transitVehiclesAt(routes, t)) dot(f, v.position[0], v.position[2], '#ffffff', 2.6)
+  for (const v of frame.vehicles.filter(vehicle => vehicle.kind === kind)) dot(f, v.position[0], v.position[2], '#ffffff', 2.6)
 }
 
 export function paintAir(f: Frame, out: ConnectionsOutput): void {

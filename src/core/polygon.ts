@@ -101,15 +101,6 @@ export function segmentPolygonDistance(a: V2, b: V2, poly: readonly V2[]): numbe
   return best
 }
 
-/** True when segment a-b touches the polygon: an endpoint inside, or any edge crossed. */
-export function segmentMeetsPolygon(a: V2, b: V2, poly: readonly V2[]): boolean {
-  if (pointInPolygon(a, poly) || pointInPolygon(b, poly)) return true
-  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-    if (segmentsIntersect(a, b, poly[j], poly[i])) return true
-  }
-  return false
-}
-
 /** True when segments a-b and c-d cross, touch, or overlap collinearly. */
 export function segmentsIntersect(a: V2, b: V2, c: V2, d: V2): boolean {
   const EPS = 1e-9

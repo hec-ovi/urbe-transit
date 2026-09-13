@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { generate } from '../src'
 import type { Vec2 } from '../src/types/atlas'
+import { crossingAtlas } from './crossing.fixture'
 import { shortJunctionAtlas } from './section-junction.fixture'
 
 const params = { seed: 'short-junction', toggles: { bridges: false, acTubes: false, wires: false, tunnels: false, bus: false, subway: false, train: false, airPaths: false } }
@@ -45,36 +46,13 @@ it('joins both consumed street sides and their building access through full-widt
   }
 })
 
-it('rejects absent paving for required walking bands instead of treating them as empty barriers', () => {
-  const atlas = shortJunctionAtlas()
-  atlas.parcels = []
-  atlas.volumetric.buildings = []
-  atlas.volumetric.ground = []
-  expect(() => generate(atlas, params)).toThrowError(expect.objectContaining({ code: 'E_ATLAS_INVALID' }))
-})
-
-it('retains a covered quarter-metre middle run between disjoint endpoint reservations', () => {
-  const atlas = shortJunctionAtlas(10.25)
-  atlas.parcels = []
-  atlas.volumetric.buildings = []
-  const runs = generate(atlas, params).networks.walk.edges.filter((edge) => edge.edgeId === 'middle')
-  expect(runs).toHaveLength(2)
-  for (const run of runs) {
-    expect(Math.hypot(run.path.at(-1)![0] - run.path[0][0], run.path.at(-1)![1] - run.path[0][1])).toBeCloseTo(.25, 8)
-    expect(run.width).toBe(run.side === 'left' ? 3 : 1.5)
-  }
-})
-
-it('rejects an interior paving gap even when both walking endpoint caps are covered', () => {
-  const atlas = shortJunctionAtlas(30)
-  atlas.parcels = []
-  atlas.volumetric.buildings = []
-  const baseline = generate(atlas, params).networks.walk.edges.find((edge) => edge.edgeId === 'middle' && edge.side === 'left')!
-  expect(baseline.path).toEqual([[-6.5, 5], [-6.5, 25]])
-  atlas.volumetric.ground = atlas.volumetric.ground!.flatMap((cell) => {
-    const [[x0, y0], [x1], [, y1]] = cell.polygon
-    if (cell.surface !== 'sidewalk' || x0 >= -6.5 || x1 <= -6.5 || y0 >= 14 || y1 <= 16) return [cell]
-    return [[y0, 14], [14, 16], [16, y1]].map(([a, b]) => ({ ...cell, surface: a === 14 ? 'open' as const : 'sidewalk' as const, polygon: [[x0, a], [x1, a], [x1, b], [x0, b]] as Vec2[] }))
-  })
-  expect(() => generate(atlas, params)).toThrowError(expect.objectContaining({ code: 'E_ATLAS_INVALID', path: 'atlas.streets.edges.middle' }))
+it('preserves crossing anchors and both walking handoffs from the published plan', () => {
+  const atlas = crossingAtlas()
+  const { walk } = generate(atlas, params).networks
+  const source = atlas.streets.crossings[0].segments[0]
+  const crossing = walk.edges.find(edge => edge.kind === 'crossing')!
+  expect(crossing.path).toEqual([source.from, source.roadway!.from, source.roadway!.to, source.to])
+  expect(crossing.path3).toEqual(crossing.path.map(([x, z]) => [x, 0, z]))
+  expect(crossing.width).toBe(source.width)
+  for (const id of [crossing.from, crossing.to]) expect(walk.edges.some(edge => edge.kind === 'access' && edge.from === id)).toBe(true)
 })

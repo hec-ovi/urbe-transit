@@ -1,5 +1,5 @@
 import './ui/styles.css'
-import { AppView } from './ui/views/AppView'
+import { PreviewController } from './preview'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
 import { generate } from './generate'
 import { ConnectionsError } from './core/errors'
@@ -31,7 +31,7 @@ async function loadAtlas(): Promise<{ atlas: AtlasBlueprint; source: string }> {
 }
 
 const { atlas, source } = await loadAtlas()
-const app = new AppView(atlas, 'alpha', source)
+const app = new PreviewController(atlas, 'alpha', source)
 document.body.append(app.el)
 app.fit()
 window.addEventListener('resize', () => app.fit())

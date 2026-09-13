@@ -1,93 +1,42 @@
-# CONTRACT: connections
+# CONTRACT: Links (connections)
 
-Purpose: deterministically computes inter-building links and movement networks from an atlas blueprint, plus a separate post-exterior pass for restrained rooftop antenna cables over explicit geometry.
+Purpose: computes interbuilding links, apertures and movement networks from Atlas, and fits rooftop cables from supplied scene geometry.
 
-Status: v0.10.0 implemented and tested. Schemas below are the coupling surface.
+Release 0.10.0. Public entry: [src/index.ts](src/index.ts). All calls are synchronous, deterministic and perform no IO.
 
-Release and document versions are separate. Package release is 0.10.0. The connections document uses format 0.9.0; Atlas inputs without authored cross sections keep their byte-identical output. The rooftop span document uses schema 1.0.0 and reports the package version that produced it.
+## Inputs and outputs
 
-## Entry point
-`generate(atlas, params) -> output` (library, `src/index.ts`; pure, synchronous, no IO).
-Same inputs give a byte-identical output document. No LLM, no randomness outside the seed.
+| Call | Input schema | Output schema |
+| --- | --- | --- |
+| `generate(atlas, params)` | [Atlas subset](src/types/atlas.ts), [parameters](schemas/params.schema.json) | [Connections document](schemas/output.schema.json), version 0.9.0 |
+| `generateRooftopSpans(request)` | [Rooftop request](schemas/rooftop-span-request.schema.json) | [Rooftop document](schemas/rooftop-span-output.schema.json), schema 1.0.0, generator 0.10.0 |
+| `signalStateAt(signal, seconds)` | Generated [Signal](src/types/output.ts), seconds from midnight | Phase state string, periodic over `signal.cycle` |
+| `transitVehiclesAt(routes, seconds)` | Generated [TransitRoute[]](src/types/output.ts), seconds from midnight | [VehiclePosition[]](src/networks/transit.ts), empty outside service |
 
-`generateRooftopSpans(request) -> rooftopSpanOutput` (library, `src/index.ts`; pure, synchronous, no IO).
-This is additive. It does not change the inputs, output, selection or geometry of `generate(atlas, params)`.
+Meters, +Y up, XZ ground; points `[x,z]` or `[x,y,z]`, polygons CCW. Timetables may extend past midnight. Callers treat results as snapshots and check document versions. Helpers take valid generated records. No HTTP or CLI wrapper is shipped.
 
-Preview: `npm run dev` serves a 2D pan and zoom map over the fixture atlas with every layer toggleable. `npm test` runs the contract tests.
+## Geometry and paths
 
-## In
-- atlas blueprint: `CityBlueprint` per ../atlas/CONTRACT.md (authority: ../atlas/schema/blueprint.ts). The consumed subset is mirrored at [src/types/atlas.ts](src/types/atlas.ts); the fixture city (`fixtures/atlas.fixture.ts`) stands in when atlas is absent.
-- params: [schemas/params.schema.json](schemas/params.schema.json). Seed, per-kind toggles (an ancient city runs with tunnels only, or nothing), link limits, day span. For wires the limits read as the street crossing: lengths are the facade-to-facade span, `minBase`/`maxBase` are the anchor height band, `density` is the share of candidate anchor stations along a street that get one.
-
-Each street publishes an `elevationProfile` measured along its centerline. It is the only source for lane, sidewalk and bus height; `level` is only the edge's declared maximum. Street-node `connections` are the only legal transfer groups, including when two disconnected groups happen to have the same height. A station publishes its `platform`, vertical `box`, shafts and one exact 3D `accessPath` per underground entrance.
-
-Street classes come from atlas and the list is additive: `alley` carries the most wire, then `street`, then `road`; `highway` none. A class this box does not know falls back to its carriageway width. An edge with no carriageway is pedestrian ground, all of it sidewalk, and carries no car lanes: that is how an `alley` arrives. An edge is valid when its carriageway plus its two sidewalks are positive; the carriageway alone may be 0.
-
-Optional street `crossSection` data supplies exact lane directions, widths, offsets, shoulders and independent sidewalk bands. Positive lane offset is left of the directed street; lanes are listed left to right. Sidewalk bands run curb, border, furnishing, walking, frontage. Highways use their existing highway authority and omit cross sections. Optional `streets.construction.planningReservations` version `1.0.0` or `1.1.0` supplies exact edge-local roadway, sidewalk and walking polygons. Optional station `entranceBays` supply an exact approach from a named street side's walking band to its shaft entrance. Authoritative `volumetric.ground` paving owns junction walk space; its coordinate grid is 1 mm.
-
-Optional `streets.construction.junctions` supplies original source groups, internal edges and external crossing approaches. Each approach supplies its minimum walking-run cut: the exact terminal exterior line when present, otherwise the source station interval. Its landing polygons permit only the named crossing handoff. Optional `walkingLandings` terminal strips require exact planning reservations and authorize a connector's unmarked roadway margin; omission keeps the complete landing on curb or sidewalk. Ordinary routes use sidewalk ground.
-
-Optional sidewalk `geometry` version `1.0.0` supplies ordered gutter-lip, gutter and band intervals. Side totals include the gutter; paved totals exclude gutter and curb. Admission checks all interval dimensions and heights against the side profile. Walking offsets read the exact published walking interval.
-
-Conventions (project wide): units meters, ground plane XZ, +Y up, 2D points [x, z], 3D points [x, y, z], polygons CCW.
-
-### Rooftop span request
-
-[schemas/rooftop-span-request.schema.json](schemas/rooftop-span-request.schema.json) carries a seed, stable building-local external attachment records, every closed obstacle or reservation volume that a candidate can reach, and optional fitting limits. The attachment payload uses the same fields as Exterior's external attachment record, wrapped only with its building ID. Volumes are generic closed vertical prisms with a simple CCW footprint, bottom, top and optional clearance. The kind labels cover buildings, facades, roofs, openings, access, equipment and reservations, but collision behavior is identical for every kind. The caller supplies the complete scene; there is no Exterior runtime import or inferred sibling state.
-
-Defaults keep the result sparse: endpoints may be used once, candidate distance is bounded, a seeded selection ratio is applied, and a global span cap is enforced. `selectionRatio: 0`, `maxSpans: 0`, no attachments, or no feasible pair returns an empty result.
-
-## Out
-One document: [schemas/output.schema.json](schemas/output.schema.json)
-- `links`: [schemas/link.schema.json](schemas/link.schema.json). Each link: kind, both endpoints (building, floor, face, aperture), centerline path, cross section, walkable flags, length. Bridges, AC tubes and tunnels pair facing buildings; wires follow the street grid and hang overhead across it. The solid is the cross section swept along the path, closed at both ends by the aperture cuts: bridge 4.0 x 3.2 m (open deck, walking surface at the aperture base), AC tube 2.0 x 2.4 m (closed box, walked over the top or through the inside), tunnel 3.0 x 2.8 m, wire a 0.1 m cable on a catenary.
-- `apertures`: [schemas/aperture.schema.json](schemas/aperture.schema.json). Per building opening: face index, center u along the face, absolute vertical base, width, height, and the exact cut polygon on the face plane (closed-form miter cut, so a diagonal tube closes with zero gap). Floor index is advisory only; exterior aligns a floor plate to each base and carves the cut. Wire anchors are mounting footprints, not holes: exterior keeps the region clear and emits an anchor node.
-- `linkRefs`: building id to building id with kind, for quests.
-- `networks`: [schemas/networks.schema.json](schemas/networks.schema.json). Walk graph with exact 3D paths for sidewalks, crossings, station stairs, passages, platforms and links; road lane graph with exact 3D lanes and turns, speed, direction and lane-change adjacency; signal controllers; transit routes with 3D shapes, stops, trip templates and headway service; air corridors. The 2D `path` fields are compatibility projections of authoritative `path3` fields. Authored sidewalk runs publish their Atlas `edgeId` and directed `side`.
-- `layers`: manifest of the toggleable preview layers present.
-
-Rooftop span output: [schemas/rooftop-span-output.schema.json](schemas/rooftop-span-output.schema.json), whose entries follow [schemas/rooftop-span.schema.json](schemas/rooftop-span.schema.json). Its metadata separates `schemaVersion` from `generatorVersion`. Each accepted span publishes a stable ID, both building and attachment refs with exact positions, cable thickness, sag, slack ratio, extra length and exact arc length. Its authoritative catenary definition gives the horizontal origin and unit direction plus the coefficients of `y(s) = scale * cosh((s - horizontalOffset) / scale) + verticalOffset` over the complete domain. `path` is a deterministic rendering polyline evaluated from that curve, not collision authority.
+- [Links](schemas/link.schema.json) carry IDs, building/face/aperture refs, centerline, cross section, walking flags and length. [Apertures](schemas/aperture.schema.json) carry face-local U, absolute base and face-plane cuts. `floor` is advisory; receiving floors align to `base`. Wire anchors are mounting footprints, not holes.
+- Profiles: bridge 4 x 3.2 m (inside walking), AC tube 2 x 2.4 m (inside and top), tunnel 3 x 2.8 m (inside), wire diameter 0.10 m (neither). Miter cuts meet both face planes. Above-ground apertures fit the building envelope; non-wire bases admit a floor stack. Bases are equal or separated by at least 2.5 m.
+- Bridges and tubes clear the highest street elevation under their full width by 5.5 m. Full-width checks exclude station volumes and third buildings above ground. Tunnel bases come from `links.tunnel.minBase` (default -4 m). Street wires cross one street with equal-height anchors (default 4 to 8 m) and a sampled parabolic sag of 3% of span. Geometry is JSON, without materials or model assets.
+- `linkRefs` maps each link to its buildings and kind. [Networks](schemas/networks.schema.json) contain walking, road, signal, transit and air data; `layers` lists present preview layers. Disabling optional link, transit or air kinds removes those layers; walking, road and signals are always computed. An infeasible optional selection may be empty.
+- Lane, sidewalk and bus `path3` preserves Atlas elevation knots; `path` is its XZ projection. Transfers respect node connection groups. Authored lane widths/directions/offsets and walking bands remain authoritative. Planning reservations and final paving constrain full-width walking at the published 1 mm coordinate precision. Physical crossing cuts, terminal strips and roadway anchors retain source ownership. Station approaches and underground access retain exact endpoints and public refs.
+- Signal phases cover every controlled index; cycle equals summed durations. Transit templates are ordered and service periods stay within the requested day.
+- [Rooftop spans](schemas/rooftop-span.schema.json) carry stable attachment refs, exact catenary coefficients, rendering samples, thickness, sag, slack and arc length. Seeded selection obeys distance, heading, ratio and count limits; quiet roofs are valid. Moving either endpoint recomputes the curve. Continuous curve/radius checks exclude touching obstacles and endpoint clearance conflicts. Samples do not determine collision.
 
 ## Errors
-Closed set, thrown as `ConnectionsError { code, message, path }`:
-- `E_ATLAS_INVALID`: invalid blueprint dimensions, refs, elevation/topology, station access, polygon winding, contradictory section totals, unsupported or incomplete planning reservations, or an unjoinable full-width walking surface.
-- `E_PARAMS_INVALID`: params fail schema or range checks.
-- `E_ROOFTOP_INPUT_INVALID`: rooftop span request fails its schema, identity, polygon, range or completeness checks.
 
-Anything the toggles request that the atlas cannot feed (subway on, no stations) yields that layer empty, never an error.
+Declared validation errors are [ConnectionsError](src/core/errors.ts) with `code`, `message`, optional `path`. Closed code set:
 
-## Invariants
-- Determinism: identical atlas and params, identical output.
-- Link spatial queries preserve original parcel pair order and complete building and street extents. Exact face, obstruction and elevation checks determine acceptance.
-- Face convention: face i of a building is the vertical quad over footprint segment i to i+1; the outward normal points away from the footprint interior. Face-local frame: U along the segment from vertex i, V along +Y.
-- Every aperture lies on its face within bounds, inside the building envelope; every cut polygon vertex lies exactly in the face plane. On one building, two aperture bases are either equal or at least 2.5 m apart, and apertures never overlap.
-- Aperture bases on one building admit a floor stack: exterior pins a floor's walking surface at every base, so the bases plus the floor heights of the parcel type's family leave at least one legal floor count inside the parcel envelope (`minFloors` to `maxFloors` within `maxHeight`). Floor heights and the counting recipe are mirrored from ../exterior/schemas/floor-constants.json in [src/links/stack.ts](src/links/stack.ts). A base that would leave no legal count is refused and the link takes the next one up, or is not built. Wire anchors cut no hole and pin no floor.
-- Link paths terminate exactly on the two face planes; `linkRefs` matches `links` one to one. An above-ground link never passes through a third building's volume.
-- A bridge or an AC tube flies over every street its complete width overlaps: its underside stands at least 5.5 m above the highest local elevation profile value under the swept link width. One touching a flat 8 m highway deck starts at 13.5 m even when the two centerlines do not cross; one crossing a ramp uses the exact overlapping ramp interval. The underside is the lower aperture base, where the miter cut reaches deepest. A link that cannot clear what it crosses is not built. Tunnels run below every street.
-- No link enters a station. A link is refused where its complete swept width overlaps a platform box, an entrance shaft or a platform passage in plan and height. A centerline that clears while the link edge clips is still refused. Height remains part of the test, so a bridge can cross above a platform at grade.
-- A link whose `walkable.inside` is set has room to stand in it: 2.1 m of headroom and 0.9 m of width at least. A wire is walkable neither way.
-- A wire spans exactly one street: both anchors sit on buildings facing each other across that street's centerline, at the same height inside the anchor band (4 to 8 m by default), and the catenary sags at most 3% of the span below them. Wire count follows the street: several per short block on alleys and narrow streets, few on roads, none on highways.
-- Signal cycle equals the sum of its phase durations; every crossing and turn connection references an existing signal and a link index inside its state string.
-- Every lane, sidewalk and bus route follows the atlas elevation profile in `path3`, including each ramp breakpoint. Every turn follows one atlas node connection group; equal heights alone never create a transfer. The scalar `level` is the maximum height of the exact path.
-- Authored lanes retain their individual widths, directions and offsets through bends, including one-way runs whose source edges reverse. Each publishes `sourceDirection` and positive-left `sourceOffset` relative to its Atlas edge; legacy lanes omit both. Index 0 is rightmost in travel direction; lane changes require a shared boundary with a same-direction lane. Lane counts never come from street class when a cross section is present.
-- Authored sidewalks use the walking band's center and width. With planning reservations, each complete regular strip fits its exact walking polygons first and final paving second. Existing ordered candidates on external crossing approaches are checked after their exact authored cuts; final-ground validation remains independent. Bend candidates follow the published geometry; per-segment sub-grid centering and refinement preserve the declared width. Inputs without that payload retain their compatibility offsets.
-- Overlapping endpoint reservations form a walking junction complex whose boundary follows original street-arm order. Consumed street sides retain their access ownership through the complex; required bands remain present in its topology. Every accepted regular run, corner and access strip fits actual paving at its complete width, with at most the published 1 mm input-coordinate uncertainty. Geometric road overlaps do not create transfer groups. Entries and crossing ends split the named side's walking run or junction route; station bay approaches copy their published geometry. An unproved required connection reports an error.
-- Complete-cover proofs use the union of original land and its coordinate uncertainty: outward edge strips of `grid / sqrt(2)`, corner joins bounded by `grid` from the source vertex. Every arrangement interval must be covered; a thin uncovered region does not pass by erosion. The grid is 0.001 m and the numerical comparison precision is 0.0000001 m.
-- Access strips end at the exact authored access point and walking-run handoff, with butt caps at both ends. An endpoint on a paving edge supplies inward route candidates before a turn. Their complete width and interior miter joins fit paving; junction connectors retain square endpoint clearances.
-- Routing candidates use original paving boundaries with exact paired subdivision seams removed before query clipping. Ambiguous original incidence retains the original polygon candidates. Hole winding and authored landing candidates remain intact. Every coverage proof still uses all original ground polygons, including each fitted part.
-- Spatial queries retain every overlapping source bound in source order. Disjoint conservative paving components can reject a route; exact cover proofs decide every accepted strip. Access candidates and source geometry are unchanged by broadphase queries.
-- A cover reuses active source boundary lines within each encountered exact arrangement slab. This cache belongs to that immutable cover; each query retains its own interval evaluations and coverage comparisons.
-- Physical junction approaches retain original incident node and group identities, with one per eligible external grade arm. Their fields fit roadway; crossing-only connectors fit the published ground roles and contain each complete crossing strip. Terminal quads fit pedestrian ground and their named walking reservation. Their source-directed exterior boundary sets each walking run's minimum cut. Atlas owns foreign-road and obstacle exclusion. Inputs without terminal quads use source station planes, including on bent offset paths. Source internal edges retain walking access ownership through their junction routes.
-- Physical crossing paths copy `[from, roadway.from, roadway.to, to]` when marking anchors are present. Each anchor retains its connector/carriageway seam, and every full-width segment and join fits the published field and connectors. Omitted anchors retain the endpoint path.
-- Every underground station entrance joins the walk graph at its published street point. Its stairs and passage copy the atlas access-path segments exactly, consecutive endpoints share one graph node, and the platform handoff joins the station node at the published platform level. No station route is flattened to 2D or inferred from its shaft footprint.
-- Trip template offsets are non-decreasing with depart >= arrive; service periods do not overlap and stay inside the day span.
-- Rooftop attachment refs are unique by building ID plus attachment ID. Directional endpoints connect only when each directional normal points toward the other endpoint inside the requested tolerance. Omnidirectional endpoints impose no heading.
-- Rooftop pairs use distinct buildings, lie inside the requested distance band and are chosen only by stable refs plus seed under the selection ratio and caps. Endpoint elevation does not force a link, so higher buildings remain candidates and quiet roofs remain valid.
-- Each rooftop span is a true catenary under world gravity. Its first and last path points equal the supplied attachments, every interior path point is evaluated from its published coefficients, and moving either attachment recomputes the curve.
-- Cable collision uses the complete continuous curve and its radius. Exact ground-track intervals against each polygon and an analytic catenary height range over every interval prove separation from the complete vertical prism and its clearance. Output samples never decide collision. Attachment roof-plane clearance disks are also checked against unrelated access, equipment, opening and reservation footprints. A touching or unproved candidate is omitted, never clipped or rerouted through a solid.
+- `E_ATLAS_INVALID`: invalid consumed Atlas references, dimensions, elevations, topology, reservations or required walking connections.
+- `E_PARAMS_INVALID`: invalid seed, toggle, link limit or timetable ordering.
+- `E_ROOFTOP_INPUT_INVALID`: malformed rooftop fields, IDs, prisms, ranges or missing attachment-owner building volumes.
 
-## Depends on
-- [Junction topology](src/networks/junctions/CONTRACT.md): original arm ordering and consumed-side boundary traces, with root-owned paving proofs.
-- ../atlas/CONTRACT.md, [street construction](../atlas/src/streets/construction/CONTRACT.md), [corridor reservations](../atlas/src/streets/construction/corridors/CONTRACT.md), [crossing construction](../atlas/src/streets/crossings/CONTRACT.md), [entrance reservations](../atlas/src/transit/reservations/CONTRACT.md): this box mirrors its consumed movement subset and ignores the additive hydrology document.
-- [Exterior](../exterior/CONTRACT.md): stable external attachment records for rooftop span requests; no code or runtime import.
+The rooftop caller supplies the complete scene, including unrelated reachable buildings and reservations; validation cannot discover an omitted building. Admission gaps for arbitrary malformed base inputs are recorded in [ISSUES.md](docs/ISSUES.md).
 
-The rooftop pass consumes those records through its local request schema. The caller supplies the complete scene.
+## Dependencies
+
+- [Atlas](../atlas/CONTRACT.md), [street construction](../atlas/src/streets/construction/CONTRACT.md), [corridor reservations](../atlas/src/streets/construction/corridors/CONTRACT.md), [crossings](../atlas/src/streets/crossings/CONTRACT.md), [station entrances](../atlas/src/transit/reservations/CONTRACT.md): blueprint data only.
+- [Exterior](../exterior/CONTRACT.md): [attachments](../exterior/schemas/external-attachment.schema.json) and [floor families](../exterior/schemas/floor-constants.json), locally represented without a runtime import.
+- Internal [junction topology](src/networks/junctions/CONTRACT.md) and [rooftop fitting](src/rooftop/CONTRACT.md). No runtime package dependencies.

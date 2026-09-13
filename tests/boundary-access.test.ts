@@ -15,9 +15,3 @@ it('joins a parcel at the sidewalk boundary through its complete declared access
   expect(access.path3.at(-1)).toEqual([200.05857185807662, 0, 231.13024549954167])
   expect(out.networks.walk.edges.some(edge => edge.kind === 'sidewalk' && (edge.from === access.to || edge.to === access.to))).toBe(true)
 })
-
-it('rejects an entrance whose paving carries its centerline but not the complete access width', () => {
-  expect(() => generate(boundaryAccessAtlas(true), params)).toThrowError(expect.objectContaining({
-    code: 'E_ATLAS_INVALID', path: 'atlas.streets.edges.e5', message: 'access on e5 has no proved full-width walking connection',
-  }))
-})

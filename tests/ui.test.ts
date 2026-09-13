@@ -1,16 +1,18 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { getByLabelText, getByRole, getByText } from '@testing-library/dom'
 import userEvent from '@testing-library/user-event'
-import { AppView } from '../src/ui/views/AppView'
+import { PreviewController } from '../src/preview'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
 
-let app: AppView
+let app: PreviewController
 
 beforeEach(() => {
   document.body.replaceChildren()
-  app = new AppView(buildFixtureAtlas(), 'alpha')
+  app = new PreviewController(buildFixtureAtlas(), 'alpha')
   document.body.append(app.el)
 })
+
+afterEach(() => app.dispose())
 
 describe('preview UI', () => {
   it('renders one toggle per export layer, all visible at start', () => {

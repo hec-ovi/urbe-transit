@@ -1,6 +1,5 @@
-import type { AtlasBlueprint, StreetEdge } from '../src/types/atlas'
-import type { Aperture, Link } from '../src/types/output'
-import { StreetBands } from '../src/links/clearance'
+import type { AtlasBlueprint } from '../src/types/atlas'
+import type { Link } from '../src/types/output'
 
 /** Independent face-plane math: unsigned distance of a world point from face `face` of a building. */
 export function facePlaneDistance(atlas: AtlasBlueprint, buildingId: string, face: number, p: [number, number, number]): number {
@@ -23,47 +22,10 @@ export function faceLength(atlas: AtlasBlueprint, buildingId: string, face: numb
 
 type P2 = [number, number]
 
-const side = (a: P2, b: P2, p: P2): number => Math.sign((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0]))
-
-/** The street whose centerline the ground segment a-b crosses, if any: the street it spans. */
-export function straddledStreet(atlas: AtlasBlueprint, a: P2, b: P2): StreetEdge | null {
-  for (const e of atlas.streets.edges) {
-    for (let i = 1; i < e.path.length; i++) {
-      const [p, q] = [e.path[i - 1], e.path[i]]
-      if (side(a, b, p) !== side(a, b, q) && side(p, q, a) !== side(p, q, b)) return e
-    }
-  }
-  return null
-}
-
-/** Total centerline length per street class. */
-export function streetLengthPerClass(atlas: AtlasBlueprint): Record<string, number> {
-  const out: Record<string, number> = {}
-  for (const e of atlas.streets.edges) {
-    let len = 0
-    for (let i = 1; i < e.path.length; i++) len += Math.hypot(e.path[i][0] - e.path[i - 1][0], e.path[i][1] - e.path[i - 1][1])
-    out[e.class] = (out[e.class] ?? 0) + len
-  }
-  return out
-}
-
 /** Ground endpoints of a link: where it leaves one facade and where it lands on the other. */
 export const linkGround = (l: Link): [P2, P2] => {
   const end = l.path[l.path.length - 1]
   return [[l.path[0][0], l.path[0][2]], [end[0], end[2]]]
-}
-
-/** Wires per 100 m of street centerline, per class; a class with no wire reads 0. */
-export function wireDensityPerClass(atlas: AtlasBlueprint, wires: readonly Link[]): Record<string, number> {
-  const counts: Record<string, number> = {}
-  for (const w of wires) {
-    const street = straddledStreet(atlas, ...linkGround(w))
-    if (street) counts[street.class] = (counts[street.class] ?? 0) + 1
-  }
-  const lengths = streetLengthPerClass(atlas)
-  const out: Record<string, number> = {}
-  for (const cls of Object.keys(lengths)) out[cls] = ((counts[cls] ?? 0) / lengths[cls]) * 100
-  return out
 }
 
 /** Distance from a point to a 3D polyline. */
@@ -92,36 +54,6 @@ function segDist(a: P2, b: P2, c: P2, d: P2): number {
     return Math.hypot(r[0] - (p[0] + dx * t), r[1] - (p[1] + dz * t))
   }
   return Math.min(toSeg(a, b, c), toSeg(a, b, d), toSeg(c, d, a), toSeg(c, d, b))
-}
-
-/**
- * Per above-ground link: the highest street surface its ground track passes over (null when it
- * passes over none) and its underside, which is the lower of its two aperture bases.
- */
-export function soffitOverStreets(
-  atlas: AtlasBlueprint,
-  out: { links: readonly Link[]; apertures: readonly { id: string; base: number }[] },
-): { id: string; level: number | null; soffit: number }[] {
-  const base = new Map(out.apertures.map((a) => [a.id, a.base]))
-  const bands = new StreetBands(atlas)
-  const res: { id: string; level: number | null; soffit: number }[] = []
-  for (const l of out.links) {
-    if (l.kind !== 'bridge' && l.kind !== 'ac-tube') continue
-    const [a, b] = linkGround(l)
-    const level = bands.levelUnder(a, b, l.crossSection.width / 2)
-    res.push({ id: l.id, level, soffit: Math.min(base.get(l.a.apertureId)!, base.get(l.b.apertureId)!) })
-  }
-  return res
-}
-
-/** Floors each building must carry: one entry per aperture that cuts a hole, by building id. */
-export function pinnedFloors(out: { apertures: readonly Aperture[] }): Map<string, { base: number; height: number }[]> {
-  const byBuilding = new Map<string, { base: number; height: number }[]>()
-  for (const a of out.apertures) {
-    if (a.kind === 'wire-anchor') continue
-    byBuilding.set(a.buildingId, [...(byBuilding.get(a.buildingId) ?? []), { base: a.base, height: a.height }])
-  }
-  return byBuilding
 }
 
 export interface StationVolume {

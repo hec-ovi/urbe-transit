@@ -1,79 +1,22 @@
-export type ToastType = 'info' | 'success' | 'warning'
+import layout from '../layout.json'
+import { renderLayout } from '../ui/layout'
 
-export interface ToastOptions {
-  durationMs?: number
-  type?: ToastType
-}
-
-/**
- * Toast Notification System with square corners, slide/fade transitions, and dark technical styling.
- */
+/** Per-preview dismissible messages, with timers released on disposal. */
 export class ToastManager {
-  private static instance: ToastManager | null = null
-  readonly el: HTMLElement
+  readonly el = renderLayout(layout.toast).el
+  private readonly timers = new Set<number>()
 
-  constructor() {
-    this.el = document.createElement('div')
-    this.el.className = 'toast-container'
-    this.el.setAttribute('aria-live', 'polite')
-    this.el.setAttribute('aria-atomic', 'true')
+  show(message: string): void {
+    const rendered = renderLayout(layout.notification, { message }, { dismiss: () => dismiss() })
+    const dismiss = (): void => { clearTimeout(timer); this.timers.delete(timer); rendered.el.remove() }
+    const timer = window.setTimeout(dismiss, 2800)
+    this.timers.add(timer)
+    this.el.append(rendered.el)
   }
 
-  static get(): ToastManager {
-    if (!ToastManager.instance) {
-      ToastManager.instance = new ToastManager()
-    }
-    return ToastManager.instance
-  }
-
-  show(message: string, options: ToastOptions = {}): HTMLElement {
-    const { durationMs = 2800, type = 'info' } = options
-    const toast = document.createElement('div')
-    toast.className = `toast toast-${type}`
-
-    const badge = document.createElement('span')
-    badge.className = 'toast-badge'
-    badge.textContent = type === 'success' ? 'OK' : type === 'warning' ? 'WARN' : 'SYS'
-
-    const text = document.createElement('span')
-    text.className = 'toast-message'
-    text.textContent = message
-
-    const closeBtn = document.createElement('button')
-    closeBtn.className = 'toast-close'
-    closeBtn.setAttribute('aria-label', 'Dismiss notification')
-    closeBtn.textContent = '×'
-
-    let timer: number | undefined
-
-    const dismiss = () => {
-      if (timer) clearTimeout(timer)
-      toast.classList.add('toast-exit')
-      toast.addEventListener(
-        'animationend',
-        () => {
-          toast.remove()
-        },
-        { once: true },
-      )
-      // Fallback removal if animationend doesn't fire (e.g. in test environment)
-      setTimeout(() => toast.remove(), 200)
-    }
-
-    closeBtn.addEventListener('click', (e) => {
-      e.stopPropagation()
-      dismiss()
-    })
-
-    toast.append(badge, text, closeBtn)
-    this.el.appendChild(toast)
-
-    if (durationMs > 0) {
-      timer = window.setTimeout(dismiss, durationMs)
-    }
-
-    return toast
+  dispose(): void {
+    for (const timer of this.timers) clearTimeout(timer)
+    this.timers.clear()
+    this.el.replaceChildren()
   }
 }
-
-export const toast = (message: string, options?: ToastOptions) => ToastManager.get().show(message, options)

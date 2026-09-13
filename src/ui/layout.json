@@ -1,0 +1,59 @@
+{
+  "initialTime": 28800,
+  "app": { "className": "app", "children": [
+    { "tag": "aside", "className": "sidebar", "children": [
+      { "className": "sidebar-brand", "children": [{ "tag": "h1", "text": "LINKS" }, { "tag": "span", "className": "badge-tag", "text": "2D PREVIEW" }] },
+      { "className": "source-wrap", "children": [{ "tag": "span", "className": "status-dot" }, { "tag": "p", "className": "source-line", "binding": "source" }] },
+      { "tag": "form", "className": "seed-section", "action": "generate", "event": "submit", "children": [
+        { "tag": "label", "className": "section-label", "text": "Seed Generator", "attributes": { "for": "seed-input" } },
+        { "className": "seed-row", "children": [
+          { "tag": "input", "ref": "seed", "binding": "seed", "attributes": { "id": "seed-input", "type": "text", "aria-label": "seed", "placeholder": "Enter seed...", "spellcheck": "false", "autocomplete": "off" } },
+          { "tag": "button", "className": "btn-generate", "text": "Generate", "attributes": { "type": "submit" } }
+        ] }
+      ] },
+      { "slot": "layers" }, { "slot": "clock" }
+    ] },
+    { "tag": "main", "className": "map-wrap", "ref": "mapWrap", "children": [
+      { "slot": "map" },
+      { "className": "map-hud-controls", "children": [
+        { "tag": "button", "className": "btn-hud", "text": "+", "attributes": { "type": "button", "title": "Zoom in (+)" }, "action": "zoomIn" },
+        { "tag": "button", "className": "btn-hud", "text": "-", "attributes": { "type": "button", "title": "Zoom out (-)" }, "action": "zoomOut" },
+        { "tag": "button", "className": "btn-hud", "text": "RESET", "attributes": { "type": "button", "title": "Reset view (0 / R)" }, "action": "reset" }
+      ] },
+      { "className": "map-hud-status", "ref": "status" }
+    ] },
+    { "slot": "toast" }
+  ] },
+  "layers": { "className": "layer-panel", "children": [
+    { "className": "panel-header", "children": [
+      { "className": "panel-title-group", "children": [{ "tag": "h2", "text": "Layers" }, { "tag": "span", "className": "panel-badge", "ref": "count" }] },
+      { "className": "panel-actions", "children": [
+        { "tag": "button", "className": "btn-tiny", "text": "ALL", "attributes": { "type": "button", "title": "Enable all layers" }, "action": "all" },
+        { "tag": "button", "className": "btn-tiny", "text": "NONE", "attributes": { "type": "button", "title": "Disable all layers" }, "action": "none" }
+      ] }
+    ] }, { "ref": "list", "className": "layer-list" }
+  ] },
+  "toggle": { "tag": "label", "className": "toggle", "children": [
+    { "tag": "input", "ref": "input", "className": "toggle-checkbox", "attributes": { "type": "checkbox" }, "action": "change", "event": "change" },
+    { "tag": "span", "className": "toggle-box" }, { "tag": "span", "ref": "swatch", "className": "toggle-swatch" },
+    { "tag": "span", "className": "toggle-label", "binding": "label" }
+  ] },
+  "clock": { "className": "time-bar", "children": [
+    { "className": "time-bar-header", "children": [{ "tag": "h2", "text": "Clock" }, { "tag": "span", "ref": "readout", "className": "time-readout" }] },
+    { "className": "time-main-row", "children": [
+      { "tag": "button", "className": "time-play-btn", "ref": "play", "text": "Play", "attributes": { "type": "button", "aria-label": "Toggle simulation clock playback" }, "action": "play" },
+      { "tag": "input", "ref": "slider", "attributes": { "type": "range", "min": "0", "max": "86400", "step": "60", "aria-label": "Simulation time" }, "action": "time", "event": "input" }
+    ] }, { "className": "time-presets", "children": [
+      { "tag": "button", "className": "btn-preset", "text": "08:00", "attributes": { "type": "button", "title": "Morning Rush", "value": "28800" }, "action": "preset" },
+      { "tag": "button", "className": "btn-preset", "text": "12:00", "attributes": { "type": "button", "title": "Midday", "value": "43200" }, "action": "preset" },
+      { "tag": "button", "className": "btn-preset", "text": "18:00", "attributes": { "type": "button", "title": "Evening Rush", "value": "64800" }, "action": "preset" },
+      { "tag": "button", "className": "btn-preset", "text": "00:00", "attributes": { "type": "button", "title": "Midnight", "value": "0" }, "action": "preset" }
+    ] }
+  ] },
+  "clockLabels": { "play": "Play", "pause": "Pause" },
+  "toast": { "className": "toast-container", "attributes": { "aria-live": "polite" } },
+  "notification": { "className": "toast", "children": [
+    { "tag": "span", "className": "toast-message", "binding": "message" },
+    { "tag": "button", "className": "toast-close", "text": "×", "attributes": { "type": "button", "aria-label": "Dismiss notification" }, "action": "dismiss" }
+  ] }
+}
