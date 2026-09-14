@@ -76,7 +76,7 @@ it('publishes path points and metrics from the authoritative catenary', () => {
   const request = twoRoofRequest(), before = structuredClone(request)
   const output = generateRooftopSpans(request), span = output.spans[0]
   expect(request).toEqual(before)
-  expect(output.meta).toEqual({ seed: request.seed, schemaVersion: '1.0.0', generatorVersion: '0.10.0' })
+  expect(output.meta).toEqual({ seed: request.seed, schemaVersion: '1.0.0', generatorVersion: '0.10.1' })
   expect(Object.keys(output).sort()).toEqual([...outputSchema.required].sort())
   expect(Object.keys(span).sort()).toEqual([...spanSchema.required].sort())
   expect(Object.keys(request).sort()).toEqual(Object.keys(requestSchema.properties).sort())

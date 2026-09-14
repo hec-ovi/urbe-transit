@@ -1,5 +1,5 @@
 /** Release version, kept in step with package.json and CHANGELOG.md. */
-export const PACKAGE_VERSION = '0.10.0'
+export const PACKAGE_VERSION = '0.10.1'
 
 /** Stable document format emitted by the original generate(atlas, params) entry point. */
 export const CONNECTIONS_DOCUMENT_VERSION = '0.9.0'

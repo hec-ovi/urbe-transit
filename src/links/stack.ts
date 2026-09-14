@@ -32,6 +32,9 @@ const FLOOR_HEIGHTS: Record<string, { min: number; max: number }> = {
   commerce: { min: 3.0, max: 6.0 },
 }
 
+/** Mirrored generation policy: 4 m clear height and 0.5 m slab/ceiling allowance. */
+export const DEFAULT_FLOOR_HEIGHT = 4.5
+
 const EPS = 1e-9
 
 /** One aperture as the stack sees it: where its floor is pinned and how tall that floor must be. */
@@ -42,38 +45,50 @@ export interface StackBase {
 
 /** Floor heights the family of this parcel type builds with. */
 export function floorHeights(type: ParcelType): { min: number; max: number } {
-  return FLOOR_HEIGHTS[FAMILY[type]] ?? FLOOR_HEIGHTS.residential
+  const { min, max } = FLOOR_HEIGHTS[FAMILY[type]] ?? FLOOR_HEIGHTS.residential
+  return { min: Math.max(min, DEFAULT_FLOOR_HEIGHT), max }
 }
 
 /**
  * Floor counts these bases admit inside the envelope, or null when no stack fits them at all.
- * Bases at or below the ground plane are basements and pin nothing above.
+ * Negative bases must admit basement floors up to ground without moving any base.
  */
 export function admissibleFloors(parcel: Parcel, bases: readonly StackBase[]): { lo: number; hi: number } | null {
   const { min, max } = floorHeights(parcel.type)
   const tallest = new Map<number, number>()
   for (const b of bases) {
-    if (b.base <= EPS) continue
     tallest.set(b.base, Math.max(tallest.get(b.base) ?? 0, b.height))
+  }
+  const basement = [...tallest.keys()].filter(base => base < -EPS).sort((x, y) => x - y)
+  for (let i = 0; i < basement.length; i++) {
+    const base = basement[i]
+    const gap = (basement[i + 1] ?? 0) - base
+    const need = Math.max(tallest.get(base)!, min)
+    if (!gapFloors(gap, need, min, max)) return null
   }
   let lo = 0
   let hi = 0
   let prev = 0
-  let need = min
-  for (const base of [...tallest.keys()].sort((x, y) => x - y)) {
+  let need = Math.max(tallest.get(0) ?? 0, min)
+  for (const base of [...tallest.keys()].filter(base => base > EPS).sort((x, y) => x - y)) {
     const gap = base - prev
-    if (need > max + EPS || gap < need - EPS) return null
-    const floorsLo = Math.ceil(gap / max - EPS)
-    const floorsHi = need > min + EPS ? 1 + Math.floor((gap - need) / min + EPS) : Math.floor(gap / min + EPS)
-    if (floorsLo > floorsHi) return null
-    lo += floorsLo
-    hi += floorsHi
+    const floors = gapFloors(gap, need, min, max)
+    if (!floors) return null
+    lo += floors.lo
+    hi += floors.hi
     prev = base
     need = Math.max(tallest.get(base)!, min)
   }
   const room = parcel.envelope.maxHeight - prev
   if (need > max + EPS || room < need - EPS) return null
   return { lo: lo + 1, hi: hi + 1 + Math.floor((room - need) / min + EPS) }
+}
+
+function gapFloors(gap: number, need: number, min: number, max: number): { lo: number; hi: number } | null {
+  if (need > max + EPS || gap < need - EPS) return null
+  const lo = Math.ceil(gap / max - EPS)
+  const hi = need > min + EPS ? 1 + Math.floor((gap - need) / min + EPS) : Math.floor(gap / min + EPS)
+  return lo <= hi ? { lo, hi } : null
 }
 
 /** True when some admissible floor count is one the parcel envelope allows. */

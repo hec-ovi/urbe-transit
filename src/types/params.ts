@@ -1,4 +1,5 @@
 import { ConnectionsError } from '../core/errors'
+import { DEFAULT_FLOOR_HEIGHT } from '../links/stack'
 
 /** Mirrors schemas/params.schema.json. */
 export interface ConnectionsParams {
@@ -45,7 +46,7 @@ const LINK_DEFAULTS: Record<LinkKindKey, LinkLimits> = {
   acTube: { minLength: 6, maxLength: 40, minBase: 6, maxPerBuilding: 3, density: 0.4 },
   // Wire lengths are the facade-to-facade span across a street, and the base pair is the anchor band.
   wire: { minLength: 6, maxLength: 26, minBase: 4, maxBase: 8, maxPerBuilding: 10, density: 0.9 },
-  tunnel: { minLength: 10, maxLength: 120, minBase: -4, maxPerBuilding: 1, density: 0.3 },
+  tunnel: { minLength: 10, maxLength: 120, minBase: -DEFAULT_FLOOR_HEIGHT, maxPerBuilding: 1, density: 0.3 },
 }
 
 /** Overrides with an explicit `undefined` keep the default instead of erasing it. */

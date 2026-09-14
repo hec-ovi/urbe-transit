@@ -2,14 +2,14 @@
 
 Purpose: computes interbuilding links, apertures and movement networks from Atlas, and fits rooftop cables from supplied scene geometry.
 
-Release 0.10.0. Public entry: [src/index.ts](src/index.ts). All calls are synchronous, deterministic and perform no IO.
+Release 0.10.1. Public entry: [src/index.ts](src/index.ts). All calls are synchronous, deterministic and perform no IO.
 
 ## Inputs and outputs
 
 | Call | Input schema | Output schema |
 | --- | --- | --- |
 | `generate(atlas, params)` | [Atlas subset](src/types/atlas.ts), [parameters](schemas/params.schema.json) | [Connections document](schemas/output.schema.json), version 0.9.0 |
-| `generateRooftopSpans(request)` | [Rooftop request](schemas/rooftop-span-request.schema.json) | [Rooftop document](schemas/rooftop-span-output.schema.json), schema 1.0.0, generator 0.10.0 |
+| `generateRooftopSpans(request)` | [Rooftop request](schemas/rooftop-span-request.schema.json) | [Rooftop document](schemas/rooftop-span-output.schema.json), schema 1.0.0, generator 0.10.1 |
 | `signalStateAt(signal, seconds)` | Generated [Signal](src/types/output.ts), seconds from midnight | Phase state string, periodic over `signal.cycle` |
 | `transitVehiclesAt(routes, seconds)` | Generated [TransitRoute[]](src/types/output.ts), seconds from midnight | [VehiclePosition[]](src/networks/transit.ts), empty outside service |
 
@@ -18,8 +18,8 @@ Meters, +Y up, XZ ground; points `[x,z]` or `[x,y,z]`, polygons CCW. Timetables 
 ## Geometry and paths
 
 - [Links](schemas/link.schema.json) carry IDs, building/face/aperture refs, centerline, cross section, walking flags and length. [Apertures](schemas/aperture.schema.json) carry face-local U, absolute base and face-plane cuts. `floor` is advisory; receiving floors align to `base`. Wire anchors are mounting footprints, not holes.
-- Profiles: bridge 4 x 3.2 m (inside walking), AC tube 2 x 2.4 m (inside and top), tunnel 3 x 2.8 m (inside), wire diameter 0.10 m (neither). Miter cuts meet both face planes. Above-ground apertures fit the building envelope; non-wire bases admit a floor stack. Bases are equal or separated by at least 2.5 m.
-- Bridges and tubes clear the highest street elevation under their full width by 5.5 m. Full-width checks exclude station volumes and third buildings above ground. Tunnel bases come from `links.tunnel.minBase` (default -4 m). Street wires cross one street with equal-height anchors (default 4 to 8 m) and a sampled parabolic sag of 3% of span. Geometry is JSON, without materials or model assets.
+- Profiles: bridge 4 x 3.2 m (inside walking), AC tube 2 x 2.4 m (inside and top), tunnel 3 x 2.8 m (inside), wire diameter 0.10 m (neither). Miter cuts meet both face planes. Above-ground apertures fit the building envelope; non-wire bases admit floors at the greater of the hard family minimum and 4.5 m (4 m clear plus 0.5 m allowance), retaining family maximum heights. Basement gaps use the same bounds. Bases are equal or separated by at least 2.5 m.
+- Bridges and tubes select candidates on a 4.5 m grid and clear the highest street elevation under their full width by 5.5 m. Full-width checks exclude station volumes and third buildings above ground. Tunnel bases come from `links.tunnel.minBase` (default -4.5 m); infeasible explicit bases produce no tunnel, without moving the requested base. Street wires cross one street with equal-height anchors (default 4 to 8 m) and a sampled parabolic sag of 3% of span. Geometry is JSON, without materials or model assets.
 - `linkRefs` maps each link to its buildings and kind. [Networks](schemas/networks.schema.json) contain walking, road, signal, transit and air data; `layers` lists present preview layers. Disabling optional link, transit or air kinds removes those layers; walking, road and signals are always computed. An infeasible optional selection may be empty.
 - Lane, sidewalk and bus `path3` preserves Atlas elevation knots; `path` is its XZ projection. Transfers respect node connection groups. Authored lane widths/directions/offsets and walking bands remain authoritative. Planning reservations and final paving constrain full-width walking at the published 1 mm coordinate precision. Physical crossing cuts, terminal strips and roadway anchors retain source ownership. Station approaches and underground access retain exact endpoints and public refs.
 - Signal phases cover every controlled index; cycle equals summed durations. Transit templates are ordered and service periods stay within the requested day.

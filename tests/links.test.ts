@@ -4,7 +4,7 @@ import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
 import { faceLength, facePlaneDistance, linkGround, segmentPolygonDistance } from './helpers'
 
 const atlas = buildFixtureAtlas()
-const out = generate(atlas, { seed: 'alpha' })
+const out = generate(atlas, { seed: 'omega' })
 
 it('publishes matching links, fitted cuts, walking flags and portal references', () => {
 
@@ -124,16 +124,30 @@ it('selects a connection floor feasible within a tight receiving building', () =
   for (const id of ['p0', 'p1']) {
     const parcel = atlas.parcels.find(p => p.id === id)!
     parcel.type = 'hotel'
-    parcel.envelope = { minFloors: 6, maxFloors: 6, floorHeight: 3.2, maxHeight: 19.2 }
-    atlas.volumetric.buildings.find(building => building.parcelId === id)!.height = 19.2
+    parcel.envelope = { minFloors: 6, maxFloors: 6, floorHeight: 4.5, maxHeight: 27 }
+    atlas.volumetric.buildings.find(building => building.parcelId === id)!.height = 27
   }
   const result = generate(atlas, { seed: 'alpha' })
   const openings = result.apertures.filter(ap => ['p0', 'p1'].includes(ap.buildingId) && ap.kind === 'bridge')
   expect(openings.length).toBeGreaterThan(0)
   for (const ap of openings) {
-    const room = 19.2 - ap.base
-    // Hotel floors range from 2.8 to 5 m; six floors must include this opening.
-    const feasible = [1,2,3,4,5].some(below => ap.base / below >= 2.8 && ap.base / below <= 5 && room >= ap.height + (5 - below) * 2.8)
+    const room = 27 - ap.base
+    // Six generated hotel floors need at least 4.5 m each, including the pinned floor.
+    const feasible = [1,2,3,4,5].some(below => ap.base / below >= 4.5 && ap.base / below <= 5 && room >= Math.max(ap.height, 4.5) + (5 - below) * 4.5)
     expect(feasible).toBe(true)
   }
+})
+
+it('allocates default basements at 4.5 m and preserves feasible explicit tunnel bases', () => {
+  const defaultTunnels = out.apertures.filter(ap => ap.kind === 'tunnel')
+  expect(defaultTunnels.length).toBeGreaterThan(0)
+  expect(new Set(defaultTunnels.map(ap => ap.base))).toEqual(new Set([-4.5]))
+
+  const deeper = generate(atlas, { seed: 'alpha', links: { tunnel: { minBase: -6, density: 1 } } })
+  const deeperTunnels = deeper.apertures.filter(ap => ap.kind === 'tunnel')
+  expect(deeperTunnels.length).toBeGreaterThan(0)
+  expect(new Set(deeperTunnels.map(ap => ap.base))).toEqual(new Set([-6]))
+
+  const shallow = generate(atlas, { seed: 'alpha', links: { tunnel: { minBase: -4, density: 1 } } })
+  expect(shallow.links.filter(link => link.kind === 'tunnel')).toEqual([])
 })

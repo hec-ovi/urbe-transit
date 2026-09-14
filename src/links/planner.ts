@@ -9,6 +9,7 @@ import { StreetBands } from './clearance'
 import { linkSolid, StationVolumes } from './stations'
 import type { BuildingIndex } from './buildings'
 import type { LinkRegistry } from './registry'
+import { DEFAULT_FLOOR_HEIGHT } from './stack'
 
 interface Candidate {
   a: string
@@ -35,7 +36,7 @@ const TIER_W: Record<FacingKind, Record<WealthTier, number>> = {
 /** Building types whose basements justify an underground tunnel. */
 const TUNNEL_TYPES = new Set(['corpo', 'military', 'police', 'hospital', 'mall'])
 
-const BASE_GRID = 4
+const BASE_GRID = DEFAULT_FLOOR_HEIGHT
 const U_FRACTIONS = [0.5, 0.32, 0.68]
 
 /** Face stations of one candidate: where on each face the link would land. */

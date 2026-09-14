@@ -34,7 +34,7 @@ it('honors every optional toggle while retaining the base movement networks', ()
 it('applies per-kind limits and the wire anchor band', () => {
   const limits = { minLength: 6, maxLength: 45, minBase: 8, maxPerBuilding: 1, density: 1 }
   const params: ConnectionsParams = { seed: 'alpha', links: {
-    bridge: limits, acTube: limits, tunnel: { ...limits, minBase: -4 },
+    bridge: limits, acTube: limits, tunnel: { ...limits, minBase: -6 },
     wire: { ...limits, minBase: 12, maxBase: 20 },
   } }
   const output = generate(buildFixtureAtlas(), params)
