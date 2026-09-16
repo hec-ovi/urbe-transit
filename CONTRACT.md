@@ -2,14 +2,14 @@
 
 Purpose: computes interbuilding links, apertures and movement networks from Atlas, and fits rooftop cables from supplied scene geometry.
 
-Release 0.10.1. Public entry: [src/index.ts](src/index.ts). All calls are synchronous, deterministic and perform no IO.
+Release 0.10.2. Public entry: [src/index.ts](src/index.ts). All calls are synchronous, deterministic and perform no IO.
 
 ## Inputs and outputs
 
 | Call | Input schema | Output schema |
 | --- | --- | --- |
 | `generate(atlas, params)` | [Atlas subset](src/types/atlas.ts), [parameters](schemas/params.schema.json) | [Connections document](schemas/output.schema.json), version 0.9.0 |
-| `generateRooftopSpans(request)` | [Rooftop request](schemas/rooftop-span-request.schema.json) | [Rooftop document](schemas/rooftop-span-output.schema.json), schema 1.0.0, generator 0.10.1 |
+| `generateRooftopSpans(request)` | [Rooftop request](schemas/rooftop-span-request.schema.json) | [Rooftop document](schemas/rooftop-span-output.schema.json), schema 1.0.0, generator 0.10.2 |
 | `signalStateAt(signal, seconds)` | Generated [Signal](src/types/output.ts), seconds from midnight | Phase state string, periodic over `signal.cycle` |
 | `transitVehiclesAt(routes, seconds)` | Generated [TransitRoute[]](src/types/output.ts), seconds from midnight | [VehiclePosition[]](src/networks/transit.ts), empty outside service |
 
@@ -22,6 +22,7 @@ Meters, +Y up, XZ ground; points `[x,z]` or `[x,y,z]`, polygons CCW. Timetables 
 - Bridges and tubes select candidates on a 4.5 m grid and clear the highest street elevation under their full width by 5.5 m. Full-width checks exclude station volumes and third buildings above ground. Tunnel bases come from `links.tunnel.minBase` (default -4.5 m); infeasible explicit bases produce no tunnel, without moving the requested base. Street wires cross one street with equal-height anchors (default 4 to 8 m) and a sampled parabolic sag of 3% of span. Geometry is JSON, without materials or model assets.
 - `linkRefs` maps each link to its buildings and kind. [Networks](schemas/networks.schema.json) contain walking, road, signal, transit and air data; `layers` lists present preview layers. Disabling optional link, transit or air kinds removes those layers; walking, road and signals are always computed. An infeasible optional selection may be empty.
 - Lane, sidewalk and bus `path3` preserves Atlas elevation knots; `path` is its XZ projection. Transfers respect node connection groups. Authored lane widths/directions/offsets and walking bands remain authoritative. Planning reservations and final paving constrain full-width walking at the published 1 mm coordinate precision. Physical crossing cuts, terminal strips and roadway anchors retain source ownership. Station approaches and underground access retain exact endpoints and public refs.
+- A four-lane section may reserve `median.width` between its two opposite lane pairs. Lane offsets include that space; validation checks lanes, shoulders and median against the full carriageway width.
 - Signal phases cover every controlled index; cycle equals summed durations. Transit templates are ordered and service periods stay within the requested day.
 - [Rooftop spans](schemas/rooftop-span.schema.json) carry stable attachment refs, exact catenary coefficients, rendering samples, thickness, sag, slack and arc length. Seeded selection obeys distance, heading, ratio and count limits; quiet roofs are valid. Moving either endpoint recomputes the curve. Continuous curve/radius checks exclude touching obstacles and endpoint clearance conflicts. Samples do not determine collision.
 

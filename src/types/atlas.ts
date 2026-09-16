@@ -169,6 +169,7 @@ export interface StreetCrossSection {
   /** Left to right across the directed path; positive offset is left. */
   lanes: { direction: 'forward' | 'backward'; width: number; offset: number }[]
   shoulders: { left: number; right: number }
+  median?: { width: number }
   sidewalks: {
     left: SidewalkSection
     right: SidewalkSection

@@ -14,8 +14,12 @@ export function validateCrossSection(edge: StreetEdge): void {
   if (!section || typeof section.runId !== 'string' || typeof section.profileId !== 'string' || !Array.isArray(section.lanes)) fail('street section needs run, profile and lanes')
   if (edge.class === 'highway') fail('highways use their highway geometry authority')
   if (!nonnegative(section.shoulders?.left) || !nonnegative(section.shoulders?.right)) fail('street shoulders must be finite non-negative widths')
+  if (section.median !== undefined && (!nonnegative(section.median?.width) || section.median.width <= 0 || section.lanes.length !== 4
+    || section.lanes[0]?.direction !== section.lanes[1]?.direction || section.lanes[2]?.direction !== section.lanes[3]?.direction
+    || section.lanes[0]?.direction === section.lanes[2]?.direction)) fail('a median requires a positive reservation between opposite lane pairs')
   let cursor = edge.width / 2 - section.shoulders.left
-  for (const lane of section.lanes) {
+  for (const [index, lane] of section.lanes.entries()) {
+    if (index === section.lanes.length / 2) cursor -= section.median?.width ?? 0
     if (!lane || !nonnegative(lane.width) || lane.width <= 0 || !Number.isFinite(lane.offset) || !['forward', 'backward'].includes(lane.direction)) fail('street lane has invalid dimensions or direction')
     if (Math.abs(lane.offset - (cursor - lane.width / 2)) > EPS) fail('street lanes must tile the carriageway from left to right')
     cursor -= lane.width
