@@ -36,8 +36,8 @@ export class WalkRegion {
     const complete = (path: V2[]): boolean => walkingStrip(path, width).every(piece => this.cover.contains(piece))
     if (fits(a, b)) return [a, b]
     if (!this.cover.mayConnect(a, b)) return null
-    for (const hint of hints) if (fits(a, hint) && fits(hint, b) && complete([a, hint, b])) return [a, hint, b]
     const entries = endCaps === 'butt' ? [a, b].flatMap(point => accessCandidates(point, width, this.boundaries, this.landOnLeft)) : []
+    for (const hint of [...hints, ...entries]) if (fits(a, hint) && fits(hint, b) && complete([a, hint, b])) return [a, hint, b]
     const points = [a, b, ...hints, ...this.candidates, ...entries]
     const distance = points.map(() => Infinity)
     const previous = points.map(() => -1)
