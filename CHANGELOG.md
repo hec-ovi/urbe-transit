@@ -1,5 +1,7 @@
 # Changelog
 
+0.10.3: one release version across package, library constant and published documents, with the test suite on the contract surface.
+
 0.10.2: explicit avenue median reservations preserve authored lane widths and routing offsets.
 
 0.10.1: generated link bases and basement admission follow the 4.5 m floor policy with exact receiving anchors.

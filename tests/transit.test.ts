@@ -34,38 +34,31 @@ const atlas = buildFixtureAtlas()
 const out = generate(atlas, { seed: 'alpha', timetable: { dayStart: 25200, dayEnd: 75600 } })
 const routes = out.networks.transit.routes
 
-it('covers every atlas line', () => {
+it('covers every atlas line with ordered templates and service inside the requested day', () => {
   expect(routes.filter((r) => r.kind === 'bus')).toHaveLength(atlas.transit.busRoutes.length)
   expect(routes.filter((r) => r.kind === 'subway')).toHaveLength(atlas.transit.subwayLines.length)
   expect(routes.filter((r) => r.kind === 'train')).toHaveLength(atlas.transit.trainLines.length)
-})
-
-it('templates are monotonic with dwell', () => {
   for (const r of routes) {
-    let prev = -1
+    let previousDeparture = -1
     r.template.forEach((t, i) => {
       expect(t.depart).toBeGreaterThanOrEqual(t.arrive)
-      expect(t.arrive).toBeGreaterThanOrEqual(prev)
-      prev = t.depart
+      expect(t.arrive).toBeGreaterThanOrEqual(previousDeparture)
+      previousDeparture = t.depart
       expect(r.stops[i]).toBeDefined()
     })
     expect(r.template).toHaveLength(r.stops.length)
-  }
-})
 
-it('service periods stay inside the day span and never overlap', () => {
-  for (const r of routes) {
-    let prevEnd = -1
+    let previousEnd = -1
     for (const p of r.service) {
-      expect(p.start).toBeGreaterThanOrEqual(prevEnd)
+      expect(p.start).toBeGreaterThanOrEqual(previousEnd)
       expect(p.end).toBeGreaterThan(p.start)
       expect(p.headway).toBeGreaterThan(0)
       expect(p.phase).toBeGreaterThanOrEqual(0)
       expect(p.phase).toBeLessThan(p.headway)
-      prevEnd = p.end
+      previousEnd = p.end
     }
     expect(r.service[0].start).toBeGreaterThanOrEqual(25200)
-    expect(r.service[r.service.length - 1].end).toBeLessThanOrEqual(75600)
+    expect(r.service.at(-1)!.end).toBeLessThanOrEqual(75600)
   }
 })
 
@@ -78,7 +71,7 @@ it('keeps a bus on the exact street ramp instead of flattening its route', () =>
   expect(bus.shape.some((point) => point[0] === 60 && point[1] === 8)).toBe(true)
 })
 
-it('places each service at its published first departure on its route', () => {
+it('places each service at its published first departure and runs none before it', () => {
   for (const route of routes) {
     const first = route.service[0]
     const vehicles = transitVehiclesAt([route], first.start + first.phase)
@@ -87,8 +80,5 @@ it('places each service at its published first departure on its route', () => {
     expect(distToPath(vehicles[0].position, route.shape)).toBeLessThan(0.5)
     expect(vehicles[0].heading).toHaveLength(2)
   }
-})
-
-it('before first departure there are no vehicles', () => {
   expect(transitVehiclesAt(routes, 3600)).toHaveLength(0)
 })

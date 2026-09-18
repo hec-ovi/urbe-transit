@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { generate } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
+import type { AtlasBlueprint, Vec2 } from '../src/types/atlas'
 import { faceLength, facePlaneDistance, linkGround, segmentPolygonDistance } from './helpers'
 
 const atlas = buildFixtureAtlas()
@@ -150,4 +151,39 @@ it('allocates default basements at 4.5 m and preserves feasible explicit tunnel 
 
   const shallow = generate(atlas, { seed: 'alpha', links: { tunnel: { minBase: -4, density: 1 } } })
   expect(shallow.links.filter(link => link.kind === 'tunnel')).toEqual([])
+})
+
+/** A thin station shaft that misses a tunnel centerline but clips the edge of its swept section. */
+function shaftOnTunnelEdge(): AtlasBlueprint {
+  const atlas = buildFixtureAtlas()
+  const target = generate(atlas, { seed: 'alpha' }).links.find((l) => l.kind === 'tunnel')!
+  const [a, b] = linkGround(target)
+  const [dx, dz] = [b[0] - a[0], b[1] - a[1]]
+  const len = Math.hypot(dx, dz)
+  const offset = target.crossSection.width / 2 + 0.05
+  const center: Vec2 = [(a[0] + b[0]) / 2 - (dz / len) * offset, (a[1] + b[1]) / 2 + (dx / len) * offset]
+  const station = atlas.transit.subwayStations[0]
+  const footprint: Vec2[] = [[center[0] - .1, center[1] - .1], [center[0] + .1, center[1] - .1], [center[0] + .1, center[1] + .1], [center[0] - .1, center[1] + .1]]
+  const foot: [number, number, number] = [center[0], -12, center[1]]
+  const handoff: [number, number, number] = [station.position[0], -12, station.position[1]]
+  station.entrances.push(center)
+  station.shafts = [...station.shafts, { footprint, top: 0, bottom: -12, passage: [] }]
+  station.accessPaths.push({
+    entranceIndex: station.entrances.length - 1,
+    segments: [{ kind: 'stairs', path: [[center[0], 0, center[1]], foot] }, { kind: 'passage', path: [foot, handoff] }],
+    platformHandoff: handoff,
+  })
+  return atlas
+}
+
+it('keeps the complete swept section of every link clear of a station shaft', () => {
+  const atlas = shaftOnTunnelEdge()
+  const shaft = atlas.transit.subwayStations[0].shafts.at(-1)!
+  for (const link of generate(atlas, { seed: 'alpha' }).links) {
+    const ys = link.path.map((p) => p[1])
+    if (Math.min(...ys) - link.crossSection.height / 2 >= shaft.top) continue
+    if (Math.max(...ys) + link.crossSection.height / 2 <= shaft.bottom) continue
+    const [a, b] = linkGround(link)
+    expect(segmentPolygonDistance(a, b, shaft.footprint), `${link.id} ${link.kind} enters the shaft`).toBeGreaterThan(link.crossSection.width / 2)
+  }
 })

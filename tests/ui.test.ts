@@ -15,18 +15,13 @@ beforeEach(() => {
 afterEach(() => app.dispose())
 
 describe('preview UI', () => {
-  it('renders one toggle per export layer, all visible at start', () => {
+  it('renders one toggle per export layer, all visible until one is switched off', async () => {
+    const user = userEvent.setup()
     const boxes = app.el.querySelectorAll<HTMLInputElement>('.layer-panel input[type=checkbox]')
     expect(boxes.length).toBeGreaterThanOrEqual(10)
     for (const box of boxes) expect(box.checked).toBe(true)
     const canvas = app.el.querySelector('canvas')!
     expect(canvas.dataset.visibleLayers!.split(',').length).toBe(boxes.length)
-  })
-
-  it('toggling a layer updates the map visibility state', async () => {
-    const user = userEvent.setup()
-    const canvas = app.el.querySelector('canvas')!
-    expect(canvas.dataset.visibleLayers).toContain('links.bridges')
     await user.click(getByText(app.el, 'Bridges'))
     expect(canvas.dataset.visibleLayers).not.toContain('links.bridges')
     await user.click(getByText(app.el, 'Bridges'))

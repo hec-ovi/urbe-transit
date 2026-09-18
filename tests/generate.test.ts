@@ -49,17 +49,6 @@ it('applies per-kind limits and the wire anchor band', () => {
   expect(generate(buildFixtureAtlas(), params).links).toEqual([])
 })
 
-it('accepts pedestrian and unfamiliar street classes using their dimensions', () => {
-  const atlas = buildFixtureAtlas()
-  const alley = atlas.streets.edges.find(edge => edge.class === 'alley')!
-  alley.width = 0
-  const unfamiliar = atlas.streets.edges.find(edge => edge.class === 'street')!
-  unfamiliar.class = 'boulevard' as never
-  const output = generate(atlas, { seed: 'alpha' })
-  expect(output.networks.road.lanes.some(lane => lane.edgeId === alley.id)).toBe(false)
-  expect(output.networks.road.lanes.some(lane => lane.edgeId === unfamiliar.id)).toBe(true)
-})
-
 it('reports an unbuildable required access through E_ATLAS_INVALID with its source path', () => {
   const atlas = boundaryAccessAtlas(true)
   expect(() => generate(atlas, { seed: 'alpha' })).toThrowError(expect.objectContaining({

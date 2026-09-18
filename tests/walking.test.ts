@@ -1,10 +1,26 @@
 import { expect, it } from 'vitest'
 import { generate } from '../src'
-import type { Vec2 } from '../src/types/atlas'
+import type { AtlasBlueprint, StreetEdge, Vec2 } from '../src/types/atlas'
+import { boundaryAccessAtlas } from './boundary-access.fixture'
 import { crossingAtlas } from './crossing.fixture'
 import { shortJunctionAtlas } from './section-junction.fixture'
+import explicitSidewalkEdge from './explicit-sidewalk.fixture.json'
 
-const params = { seed: 'short-junction', toggles: { bridges: false, acTubes: false, wires: false, tunnels: false, bus: false, subway: false, train: false, airPaths: false } }
+const walkOnly = (seed: string) => ({ seed, toggles: { bridges: false, acTubes: false, wires: false, tunnels: false, bus: false, subway: false, train: false, airPaths: false } })
+
+/** One exact public Atlas module-city edge, with empty surrounding city collections. */
+function explicitSidewalkAtlas(): AtlasBlueprint {
+  const edge = structuredClone(explicitSidewalkEdge) as StreetEdge
+  return {
+    meta: { seed: 'explicit-sidewalk', bounds: { min: [0, 0], max: [200, 100] } },
+    districts: [], parcels: [], volumetric: { buildings: [] },
+    streets: {
+      edges: [edge], crossings: [],
+      nodes: [edge.from, edge.to].map((id, i) => ({ id, position: edge.path[i], edgeIds: [edge.id], connections: [{ level: 0, edgeIds: [edge.id] }] })),
+    },
+    transit: { busStops: [], busRoutes: [], trainStations: [], trainLines: [], subwayStations: [], subwayLines: [] },
+  }
+}
 
 /** Separating-axis proof for the complete square-capped path strip against an authored cell. */
 function intersectsCell(a: Vec2, b: Vec2, width: number, cell: Vec2[]): boolean {
@@ -23,6 +39,7 @@ function intersectsCell(a: Vec2, b: Vec2, width: number, cell: Vec2[]): boolean 
 
 it('joins both consumed street sides and their building access through full-width authored paving', () => {
   const atlas = shortJunctionAtlas()
+  const params = walkOnly('short-junction')
   const out = generate(atlas, params)
   expect(out).toEqual(generate(structuredClone(atlas), params))
   const { walk } = out.networks
@@ -48,11 +65,38 @@ it('joins both consumed street sides and their building access through full-widt
 
 it('preserves crossing anchors and both walking handoffs from the published plan', () => {
   const atlas = crossingAtlas()
-  const { walk } = generate(atlas, params).networks
+  const { walk } = generate(atlas, walkOnly('short-junction')).networks
   const source = atlas.streets.crossings[0].segments[0]
   const crossing = walk.edges.find(edge => edge.kind === 'crossing')!
   expect(crossing.path).toEqual([source.from, source.roadway!.from, source.roadway!.to, source.to])
   expect(crossing.path3).toEqual(crossing.path.map(([x, z]) => [x, 0, z]))
   expect(crossing.width).toBe(source.width)
   for (const id of [crossing.from, crossing.to]) expect(walk.edges.some(edge => edge.kind === 'access' && edge.from === id)).toBe(true)
+})
+
+// Published street, parcel access and nearby ground from Atlas urbe-tiny, with isolated endpoint groups.
+it('joins a parcel at the sidewalk boundary through its complete declared access width', () => {
+  const out = generate(boundaryAccessAtlas(), walkOnly('boundary-access'))
+  const entry = out.networks.walk.nodes.find(node => node.kind === 'entry')!
+  const access = out.networks.walk.edges.find(edge => edge.kind === 'access' && edge.from === entry.id)!
+  expect(access.width).toBe(2)
+  expect(access.path3[0]).toEqual([198.666, 0, 228.757])
+  expect(access.path3.at(-1)).toEqual([200.05857185807662, 0, 231.13024549954167])
+  expect(out.networks.walk.edges.some(edge => edge.kind === 'sidewalk' && (edge.from === access.to || edge.to === access.to))).toBe(true)
+})
+
+it('places both walking bands at their published intervals while preserving carriageway lanes', () => {
+  const input = explicitSidewalkAtlas(), before = structuredClone(input)
+  const output = generate(input, { seed: 'explicit-sidewalk' })
+  expect(input).toEqual(before)
+  const walking = output.networks.walk.edges.filter((edge) => edge.edgeId === 'e0')
+  expect(walking).toHaveLength(2)
+  for (const edge of walking) {
+    expect(edge.width).toBe(edge.side === 'left' ? 3 : 2)
+    for (const point of edge.path) expect(point[1]).toBeCloseTo(edge.side === 'left' ? 40.5 : 21, 8)
+  }
+  const lanes = output.networks.road.lanes
+  expect(lanes).toHaveLength(4)
+  expect(lanes.map((lane) => lane.sourceOffset).sort((a, b) => a! - b!)).toEqual([-5.25, -1.75, 1.75, 5.25])
+  expect(lanes.every((lane) => lane.width === 3.5)).toBe(true)
 })

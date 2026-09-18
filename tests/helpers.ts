@@ -56,29 +56,6 @@ function segDist(a: P2, b: P2, c: P2, d: P2): number {
   return Math.min(toSeg(a, b, c), toSeg(a, b, d), toSeg(c, d, a), toSeg(c, d, b))
 }
 
-export interface StationVolume {
-  id: string
-  kind: 'platform' | 'shaft' | 'passage'
-  footprint: P2[]
-  bottom: number
-  top: number
-}
-
-/** Every solid a station occupies, read straight from the blueprint. */
-export function stationVolumes(atlas: AtlasBlueprint): StationVolume[] {
-  const out: StationVolume[] = []
-  for (const s of [...atlas.transit.subwayStations, ...atlas.transit.trainStations]) {
-    const box = s.box
-    if (!box) continue
-    if (s.platform) out.push({ id: s.id, kind: 'platform', footprint: s.platform, bottom: box.bottom, top: box.top })
-    ;(s.shafts ?? []).forEach((shaft, i) => {
-      out.push({ id: `${s.id}#shaft${i}`, kind: 'shaft', footprint: shaft.footprint, bottom: shaft.bottom, top: shaft.top })
-      if (shaft.passage) out.push({ id: `${s.id}#passage${i}`, kind: 'passage', footprint: shaft.passage, bottom: box.bottom, top: box.top })
-    })
-  }
-  return out
-}
-
 const inPolygon = (p: P2, poly: readonly P2[]): boolean => {
   let inside = false
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
@@ -100,29 +77,4 @@ export function segmentPolygonDistance(a: P2, b: P2, poly: readonly P2[]): numbe
     best = Math.min(best, dist)
   }
   return best
-}
-
-/**
- * Per link, its closest approach in plan to a station volume it also overlaps in height. A
- * distance of 0 means the link is inside the station. Links that clear a station vertically,
- * such as a bridge over a platform at grade, are not listed: they never meet it.
- */
-export function stationApproach(
-  atlas: AtlasBlueprint,
-  out: { links: readonly Link[] },
-): { linkId: string; kind: string; volume: string; distance: number }[] {
-  const volumes = stationVolumes(atlas)
-  const res: { linkId: string; kind: string; volume: string; distance: number }[] = []
-  for (const l of out.links) {
-    const [a, b] = linkGround(l)
-    const ys = l.path.map((p) => p[1])
-    const bottom = Math.min(...ys) - l.crossSection.height / 2
-    const top = Math.max(...ys) + l.crossSection.height / 2
-    for (const v of volumes) {
-      if (bottom >= v.top || top <= v.bottom) continue
-      const centerDistance = segmentPolygonDistance(a, b, v.footprint)
-      res.push({ linkId: l.id, kind: l.kind, volume: `${v.kind} ${v.id}`, distance: Math.max(0, centerDistance - l.crossSection.width / 2) })
-    }
-  }
-  return res
 }

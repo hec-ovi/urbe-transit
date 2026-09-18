@@ -2,14 +2,14 @@
 
 Purpose: computes interbuilding links, apertures and movement networks from Atlas, and fits rooftop cables from supplied scene geometry.
 
-Release 0.10.2. Public entry: [src/index.ts](src/index.ts). All calls are synchronous, deterministic and perform no IO.
+Release 0.10.3. Public entry: [src/index.ts](src/index.ts). All calls are synchronous, deterministic and perform no IO.
 
 ## Inputs and outputs
 
 | Call | Input schema | Output schema |
 | --- | --- | --- |
 | `generate(atlas, params)` | [Atlas subset](src/types/atlas.ts), [parameters](schemas/params.schema.json) | [Connections document](schemas/output.schema.json), version 0.9.0 |
-| `generateRooftopSpans(request)` | [Rooftop request](schemas/rooftop-span-request.schema.json) | [Rooftop document](schemas/rooftop-span-output.schema.json), schema 1.0.0, generator 0.10.2 |
+| `generateRooftopSpans(request)` | [Rooftop request](schemas/rooftop-span-request.schema.json) | [Rooftop document](schemas/rooftop-span-output.schema.json), schema 1.0.0, generator 0.10.3 |
 | `signalStateAt(signal, seconds)` | Generated [Signal](src/types/output.ts), seconds from midnight | Phase state string, periodic over `signal.cycle` |
 | `transitVehiclesAt(routes, seconds)` | Generated [TransitRoute[]](src/types/output.ts), seconds from midnight | [VehiclePosition[]](src/networks/transit.ts), empty outside service |
 

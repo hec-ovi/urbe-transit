@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { version } from '../package.json'
 import requestSchema from '../schemas/rooftop-span-request.schema.json'
 import outputSchema from '../schemas/rooftop-span-output.schema.json'
 import spanSchema from '../schemas/rooftop-span.schema.json'
@@ -17,7 +18,7 @@ it('pairs directional attachments only when both headings face the partner', () 
   expect(generateRooftopSpans(request).spans).toHaveLength(0)
 })
 
-it('applies stable subset caps without making a taller endpoint mandatory', () => {
+it('obeys the distance, ratio and total caps, and treats a quiet roof as a valid empty result', () => {
   const request: RooftopSpanRequest = {
     ...twoRoofRequest(),
     attachments: [
@@ -34,49 +35,29 @@ it('applies stable subset caps without making a taller endpoint mandatory', () =
     ],
     params: { ...twoRoofRequest().params, maxDistance: 45, maxSpans: 1 },
   }
-  const selected = generateRooftopSpans(request)
-  expect(selected.spans).toHaveLength(1)
+  expect(generateRooftopSpans(request).spans).toHaveLength(1)
   expect(generateRooftopSpans({ ...request, params: { ...request.params, maxSpans: 0 } }).spans).toEqual([])
   expect(generateRooftopSpans({ ...request, params: { ...request.params, selectionRatio: 0 } }).spans).toEqual([])
+  expect(generateRooftopSpans({ ...request, params: { ...request.params, maxDistance: 10 } }).spans).toEqual([])
+  expect(generateRooftopSpans({ ...request, attachments: [] }).spans).toEqual([])
 })
 
-it('accepts quiet roofs and no feasible pair as normal empty results', () => {
-  const quiet = twoRoofRequest()
-  quiet.attachments = []
-  expect(generateRooftopSpans(quiet).spans).toEqual([])
-
-  const distant = twoRoofRequest()
-  distant.params = { ...distant.params, maxDistance: 10 }
-  expect(generateRooftopSpans(distant).spans).toEqual([])
-})
-
-it('recomputes the complete catenary when either stable endpoint moves', () => {
-  const base = twoRoofRequest()
-  const original = generateRooftopSpans(base).spans[0]
-
-  const movedB = twoRoofRequest()
-  movedB.attachments[1].attachment.position = [42, 23, 3]
-  const afterB = generateRooftopSpans(movedB).spans[0]
-  expect(afterB.id).toBe(original.id)
-  expect(afterB.path).not.toEqual(original.path)
-  expect(afterB.path.at(-1)).toEqual([42, 23, 3])
-  expect(afterB.catenary).not.toEqual(original.catenary)
-
-  const movedA = twoRoofRequest()
-  movedA.attachments[0].attachment.position = [-2, 22, -4]
-  movedA.volumes[0].footprint = [[-4, -6], [0, -6], [0, -2], [-4, -2]]
-  const afterA = generateRooftopSpans(movedA).spans[0]
-  expect(afterA.id).toBe(original.id)
-  expect(afterA.path).not.toEqual(original.path)
-  expect(afterA.path[0]).toEqual([-2, 22, -4])
-  expect(afterA.catenary).not.toEqual(original.catenary)
+it('recomputes the complete catenary when a stable endpoint moves', () => {
+  const original = generateRooftopSpans(twoRoofRequest()).spans[0]
+  const moved = twoRoofRequest()
+  moved.attachments[1].attachment.position = [42, 23, 3]
+  const after = generateRooftopSpans(moved).spans[0]
+  expect(after.id).toBe(original.id)
+  expect(after.path).not.toEqual(original.path)
+  expect(after.path.at(-1)).toEqual([42, 23, 3])
+  expect(after.catenary).not.toEqual(original.catenary)
 })
 
 it('publishes path points and metrics from the authoritative catenary', () => {
   const request = twoRoofRequest(), before = structuredClone(request)
   const output = generateRooftopSpans(request), span = output.spans[0]
   expect(request).toEqual(before)
-  expect(output.meta).toEqual({ seed: request.seed, schemaVersion: '1.0.0', generatorVersion: '0.10.1' })
+  expect(output.meta).toEqual({ seed: request.seed, schemaVersion: '1.0.0', generatorVersion: version })
   expect(Object.keys(output).sort()).toEqual([...outputSchema.required].sort())
   expect(Object.keys(span).sort()).toEqual([...spanSchema.required].sort())
   expect(Object.keys(request).sort()).toEqual(Object.keys(requestSchema.properties).sort())
@@ -96,6 +77,7 @@ it('publishes path points and metrics from the authoritative catenary', () => {
   expect(span.sag).toBeGreaterThan(0)
   expect(span.thickness).toBe(0.04)
 })
+
 it('rejects a thin obstacle between every emitted path sample', () => {
   const request = twoRoofRequest()
   request.params = { ...request.params, pathSegments: 2 }

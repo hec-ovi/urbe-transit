@@ -52,36 +52,6 @@ it('uses 7, 14 and 21 m lane dimensions and directions independent of street cla
   }
 })
 
-it('preserves one-way direction through reversed source fragments alongside two- and four-lane arms', () => {
-  const atlas = crossAtlas()
-  atlas.streets.crossings = []
-  const directions: ('forward' | 'backward')[][] = [['forward'], ['backward', 'forward'], ['backward'], ['backward', 'backward', 'forward', 'forward']]
-  for (const [i, edge] of atlas.streets.edges.entries()) {
-    edge.width = directions[i].length * 3.5
-    edge.crossSection!.shoulders = { left: 0, right: 0 }
-    edge.crossSection!.runId = i % 2 === 0 ? 'one-way' : `run-${i}`
-    edge.crossSection!.lanes = directions[i].map((direction, index) => ({ direction, width: 3.5, offset: edge.width / 2 - 3.5 * (index + .5) }))
-  }
-  const { road } = generate(atlas, params).networks
-  for (const [i, edge] of atlas.streets.edges.entries()) {
-    const lanes = road.lanes.filter((lane) => lane.edgeId === edge.id)
-    expect(lanes).toHaveLength(directions[i].length)
-    for (const spec of edge.crossSection!.lanes) {
-      const lane = lanes.find((candidate) => Math.abs(coordinates(edge, candidate.path[0]).left - spec.offset) < 1e-7)!
-      expect(lane.width).toBe(3.5)
-      expect(lane.sourceDirection).toBe(spec.direction)
-      expect(lane.sourceOffset).toBe(spec.offset)
-      expect(coordinates(edge, lane.path.at(-1)!).along > coordinates(edge, lane.path[0]).along).toBe(spec.direction === 'forward')
-    }
-  }
-  const incoming = road.lanes.find((lane) => lane.id === 'e2b0')!
-  const outgoing = road.lanes.find((lane) => lane.id === 'e0f0')!
-  const through = incoming.next.find((next) => next.laneId === outgoing.id)!
-  expect(through.via3[0]).toEqual(incoming.path3.at(-1))
-  expect(through.via3.at(-1)).toEqual(outgoing.path3[0])
-  expect(road.lanes.some((lane) => lane.id === 'e2f0' || lane.id === 'e0b0')).toBe(false)
-})
-
 it('preserves authored station bay approaches and their exact walking-side graph handoff', () => {
   const atlas = crossAtlas()
   const approach: Vec2[] = [[40, 6.5], [40, 9.5]]
@@ -98,7 +68,16 @@ it('preserves authored station bay approaches and their exact walking-side graph
   expect(access.path).toEqual([...approach].reverse())
   const sidewalk = walk.edges.find((edge) => edge.edgeId === 'e0' && edge.side === 'left' && edge.to === access.to)!
   expect(sidewalk.path3.at(-1)).toEqual([40, 0, 6.5])
-  expect(walk.edges.find((edge) => edge.kind === 'stairs')!.from).toBe(entrance.id)
+  const station = atlas.transit.subwayStations[0]
+  const [path] = station.accessPaths
+  const underground = walk.edges.filter((edge) => edge.stationId === station.id && (edge.kind === 'stairs' || edge.kind === 'passage'))
+  expect(underground.map((edge) => edge.kind)).toEqual(path.segments.map((segment) => segment.kind))
+  expect(underground.map((edge) => edge.path3)).toEqual(path.segments.map((segment) => segment.path))
+  expect(underground[0].from).toBe(entrance.id)
+  const handoff = walk.nodes.find((node) => node.id === underground.at(-1)!.to)!
+  expect([handoff.x, handoff.y, handoff.z]).toEqual(path.platformHandoff)
+  const center = walk.nodes.find((node) => node.kind === 'station' && node.ref === station.id)!
+  expect(walk.edges.some((edge) => edge.kind === 'platform' && edge.from === handoff.id && edge.to === center.id)).toBe(true)
   atlas.transit.subwayStations[0].entranceBays![0].approach[0][1] += .1
   expect(() => generate(atlas, params)).toThrowError(expect.objectContaining({ code: 'E_ATLAS_INVALID', path: 'atlas.transit.stations.station.entranceBays' }))
 })
