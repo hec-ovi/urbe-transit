@@ -1,6 +1,6 @@
 # Links (connections)
 
-Release 0.10.4. Computes interbuilding link geometry, building apertures and movement networks from an Atlas blueprint, plus rooftop cables from explicit attachments and obstacles. Both library calls are synchronous, deterministic and have no IO.
+Release 0.10.4. Computes interbuilding link geometry, building apertures and movement networks from an Atlas blueprint, plus rooftop cables from explicit attachments and obstacles. Public calls are synchronous, deterministic and have no IO.
 
 ```ts
 import { generate, generateRooftopSpans } from './src/index'
@@ -23,4 +23,4 @@ The 2D preview provides seed, layer, clock, pan and zoom controls. `ATLAS_BLUEPR
 
 ## API
 
-[SKILL.md](SKILL.md) provides fields, defaults and a copyable example. [CONTRACT.md](CONTRACT.md) defines schemas, guarantees and errors. [docs/INDEX.md](docs/INDEX.md) maps the implementation; [docs/ISSUES.md](docs/ISSUES.md) lists the proposed Atlas handoff and decisions requiring coordination.
+[SKILL.md](SKILL.md) provides fields, defaults and a copyable example. [CONTRACT.md](CONTRACT.md) defines schemas, guarantees and errors. [docs/INDEX.md](docs/INDEX.md) maps nested boxes; [docs/ISSUES.md](docs/ISSUES.md) lists the proposed Atlas handoff and decisions requiring coordination.

@@ -8,7 +8,7 @@ Purpose: fits a restrained deterministic subset of antenna cables between stable
 
 ## Out
 
-[The output schema](../../schemas/rooftop-span-output.schema.json) contains zero or more [spans](../../schemas/rooftop-span.schema.json). Each span gives stable endpoint refs, exact catenary coefficients, a derived rendering path, thickness, sag, slack and length.
+[The output schema](../../schemas/rooftop-span-output.schema.json) contains zero or more [spans](../../schemas/rooftop-span.schema.json). Each span gives stable endpoint refs, exact catenary coefficients, a derived rendering path, thickness, sag, slack, slack ratio and length.
 
 ## Error
 

@@ -7,7 +7,7 @@ Gate: `npx vitest run --config src/networks/junctions/vitest.config.ts` from the
 ## In
 
 - `buildJunctionTopology(input)`: nodes, graph edges and grouped endpoints, [schema.ts](schema.ts). Each endpoint supplies its outward tangent, clearance along the edge, and outward-relative walking port IDs. A null port marks a boundary barrier.
-- `connectJunctions(input)`: the same graph, a port map, positive `maximumConnectorWidth`, and caller-owned full-width paving router, [schema.ts](schema.ts). Each port gives its exact 3D position and width. The router receives both port IDs, required width, original complex node and edge IDs, and directed internal-edge traces. It returns a proved path or null.
+- `connectJunctions(input)`: the same graph, a port map, positive `maximumConnectorWidth`, and caller-owned full-width paving router, [schema.ts](schema.ts). Each port gives its exact 3D position and width. The router receives both port IDs, required width, original complex node and edge IDs, internal edge IDs, and directed traces. It returns a proved path or null.
 
 Clearances include the complete covered walking interval and the caller's roadway setback. An endpoint with no covered interval consumes the complete edge. Groups have stable unique IDs and preserve Atlas's level-separated connection partition.
 
