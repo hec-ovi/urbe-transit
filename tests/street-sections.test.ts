@@ -94,3 +94,27 @@ it('preserves every elevation breakpoint with authored lane and walking offsets'
     for (const point of path.path3) expect(point[1]).toBeCloseTo(Math.min(8, point[0] * 8 / 60), 8)
   }
 })
+
+/** Published district avenue: four 3.5 m lanes with an ornamental median between the pairs. */
+function avenueAtlas(median = 3.4): AtlasBlueprint {
+  const sidewalk = { profileId: 'district', bands: { curb: .2, border: 1, furnishing: 1, walking: 2, frontage: .7 } }
+  const edge: StreetEdge = { id: 'avenue', class: 'road', from: 'a', to: 'b', path: [[0, 0], [200, 0]], width: 17.4, sidewalk: { left: 4.9, right: 4.9 }, level: 0,
+    elevationProfile: [{ distance: 0, level: 0 }, { distance: 200, level: 0 }],
+    crossSection: { runId: 'avenue', profileId: 'avenue', shoulders: { left: 0, right: 0 }, median: { width: median },
+      lanes: [6.95, 3.45, -3.45, -6.95].map((offset, i) => ({ direction: i < 2 ? 'backward' as const : 'forward' as const, width: 3.5, offset })),
+      sidewalks: { left: sidewalk, right: sidewalk } },
+  }
+  return { meta: { seed: 'avenue', bounds: { min: [-20, -20], max: [220, 20] } }, districts: [], parcels: [], volumetric: { buildings: [] },
+    streets: { edges: [edge], crossings: [], nodes: ([['a', [0, 0]], ['b', [200, 0]]] as [string, Vec2][]).map(([id, position]) => ({ id, position, edgeIds: ['avenue'], connections: [{ level: 0, edgeIds: ['avenue'] }] })) },
+    transit: { busStops: [], busRoutes: [], trainStations: [], trainLines: [], subwayStations: [], subwayLines: [] } }
+}
+
+it('leaves the authored median between both lane pairs and checks it against the carriageway', () => {
+  const lanes = generate(avenueAtlas(), { seed: 'avenue' }).networks.road.lanes
+  expect(lanes.map((lane) => lane.sourceOffset).sort((a, b) => a! - b!)).toEqual([-6.95, -3.45, 3.45, 6.95])
+  const inner = Math.min(...lanes.map((lane) => Math.abs(lane.sourceOffset!) - lane.width / 2))
+  expect(inner * 2).toBeCloseTo(3.4, 9)
+  expect(() => generate(avenueAtlas(4), { seed: 'avenue' })).toThrowError(expect.objectContaining({
+    name: 'ConnectionsError', code: 'E_ATLAS_INVALID', path: 'atlas.streets.edges.avenue.crossSection',
+  }))
+})

@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { generate, ConnectionsError, type ConnectionsParams } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
-import { boundaryAccessAtlas } from './boundary-access.fixture'
+import { shortJunctionAtlas } from './section-junction.fixture'
 
 it('returns the versioned document deterministically without mutating the request', () => {
   const atlas = buildFixtureAtlas(), before = structuredClone(atlas)
@@ -50,7 +50,9 @@ it('applies per-kind limits and the wire anchor band', () => {
 })
 
 it('reports an unbuildable required access through E_ATLAS_INVALID with its source path', () => {
-  const atlas = boundaryAccessAtlas(true)
+  const atlas = shortJunctionAtlas()
+  // A parcel entrance out in open land has no paved full-width connection to its street.
+  atlas.parcels[0].access.point = [-30, 30]
   expect(() => generate(atlas, { seed: 'alpha' })).toThrowError(expect.objectContaining({
     name: 'ConnectionsError', code: 'E_ATLAS_INVALID', message: expect.any(String), path: expect.any(String),
   }))

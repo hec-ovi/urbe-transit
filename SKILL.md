@@ -5,11 +5,11 @@ description: Compute Links geometry, building apertures and movement paths from 
 
 # Links API
 
-Release 0.10.3. Computes deterministic link geometry and movement networks, plus rooftop catenaries, through pure synchronous library calls in `src/index.ts`.
+Release 0.10.4. Computes deterministic link geometry and movement networks, plus rooftop catenaries, through pure synchronous library calls in `src/index.ts`.
 
 ## City request
 
-Call `generate(atlas, params)`. Supply the complete [Atlas subset](src/types/atlas.ts), including elevations, transfer groups, building envelopes and station access. [Parameters](schemas/params.schema.json):
+Call `generate(atlas, params)`. Supply the complete [Atlas subset](src/types/atlas.ts), including elevations, transfer groups, building envelopes and station access. Street planning reservations, when present, are model 2.1.0. [Parameters](schemas/params.schema.json):
 
 - `seed`: required nonempty string.
 - `toggles`: `bridges`, `acTubes`, `wires`, `tunnels`, `airPaths`, `bus`, `subway`, `train`; each defaults to `true`. Walking, roads and signals are always computed.
@@ -35,7 +35,7 @@ Call `generateRooftopSpans(request)` with [this schema](schemas/rooftop-span-req
 - `volumes`: required complete scene of `{id, kind, buildingId?, footprint, bottom, top, clearance?}`. Footprints are simple CCW XZ polygons, heights are absolute meters, clearance defaults to 0. Every attachment needs its owner's building volume. Include reachable buildings, facades, roofs, openings, access, equipment and reservations.
 - Optional `params`: `minDistance=5`, `maxDistance=100`, `selectionRatio=0.35`, `maxSpans=12`, `maxPerAttachment=1`, `thickness={min:0.025,max:0.05}` meters, `slackRatio={min:1.003,max:1.018}`, `directionToleranceDegrees=30`, `pathSegments=24`.
 
-Returns [rooftop output](schemas/rooftop-span-output.schema.json): `meta` (schema 1.0.0, generator 0.10.3) and `spans`. Each span carries exact anchors, catenary coefficients, rendering path, thickness, sag, slack and arc length. Collision checks the continuous curve; touching or unproved spans are omitted. Empty output is valid. Resubmit the full scene when an attachment moves.
+Returns [rooftop output](schemas/rooftop-span-output.schema.json): `meta` (schema 1.0.0, generator 0.10.4) and `spans`. Each span carries exact anchors, catenary coefficients, rendering path, thickness, sag, slack and arc length. Collision checks the continuous curve; touching or unproved spans are omitted. Empty output is valid. Resubmit the full scene when an attachment moves.
 
 ## Errors and time queries
 

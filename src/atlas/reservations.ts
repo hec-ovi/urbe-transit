@@ -1,6 +1,9 @@
 import { ConnectionsError } from '../core/errors'
 import type { AtlasBlueprint, Vec2 } from '../types/atlas'
 
+/** The one accepted street reservation model; every consumed city publishes it. */
+const STREET_RESERVATION_VERSION = '2.1.0'
+
 /** Exact planning polygons arrive as data; their source model is descriptive metadata. */
 export function validatePlanningReservations(atlas: AtlasBlueprint): void {
   const planning = atlas.streets.construction?.planningReservations
@@ -8,8 +11,7 @@ export function validatePlanningReservations(atlas: AtlasBlueprint): void {
   const path = 'atlas.streets.construction.planningReservations'
   const fail: (message: string, at?: string) => never = (message, at = path) => { throw new ConnectionsError('E_ATLAS_INVALID', message, at) }
   const model = planning?.model
-  if (!['1.0.0', '1.1.0'].includes(planning?.version) || model?.id !== 'atlas-directed-corridors' || model.version !== planning.version || model.authority !== 'edge-local-planning' || model.units !== 'metres' || model.coordinateGrid !== .001) fail('unsupported street reservation model')
-  if (planning.version === '1.0.0' && atlas.streets.edges.some((edge) => edge.crossSection && Object.values(edge.crossSection.sidewalks).some((side) => side.geometry !== undefined))) fail('explicit sidewalk geometry needs street reservation version 1.1.0')
+  if (planning?.version !== STREET_RESERVATION_VERSION || model?.id !== 'atlas-directed-corridors' || model.version !== planning.version || model.authority !== 'edge-local-planning' || model.units !== 'metres' || model.coordinateGrid !== .001) fail('unsupported street reservation model')
   if (!Array.isArray(planning.edges)) fail('street reservations need an edge array')
   const source = new Map(atlas.streets.edges.map((edge) => [edge.id, edge]))
   const seen = new Set<string>()
@@ -29,18 +31,16 @@ export function validatePlanningReservations(atlas: AtlasBlueprint): void {
     polygons(reservation.roadway, edge.width > 0, `${at}.roadway`)
     for (const side of ['left', 'right'] as const) {
       const geometry = reservation.sides?.[side]
+      const section = edge.crossSection?.sidewalks[side]
+      const bands = section?.bands
       polygons(geometry?.sidewalk, edge.sidewalk[side] > 0, `${at}.sides.${side}.sidewalk`)
-      polygons(geometry?.walking, (edge.crossSection?.sidewalks[side].bands.walking ?? edge.sidewalk[side]) > 0, `${at}.sides.${side}.walking`)
-      if (planning.version === '1.1.0') {
-        const section = edge.crossSection?.sidewalks[side]
-        const bands = section?.bands
-        const pavedWidth = section?.geometry?.pavedWidth ?? (bands ? bands.border + bands.furnishing + bands.walking + bands.frontage : edge.sidewalk[side])
-        polygons(geometry?.paved, pavedWidth > 0, `${at}.sides.${side}.paved`)
-        for (const role of ['gutter-lip', 'gutter', 'curb', 'border', 'furnishing', 'frontage'] as const) {
-          const interval = section?.geometry?.intervals.find((interval) => interval.role === role)
-          const width = interval ? interval.end - interval.start : role === 'gutter-lip' || role === 'gutter' ? 0 : bands?.[role] ?? 0
-          polygons(geometry?.bands?.[role], width > 0, `${at}.sides.${side}.bands.${role}`)
-        }
+      polygons(geometry?.walking, (bands?.walking ?? edge.sidewalk[side]) > 0, `${at}.sides.${side}.walking`)
+      const pavedWidth = section?.geometry?.pavedWidth ?? (bands ? bands.border + bands.furnishing + bands.walking + bands.frontage : edge.sidewalk[side])
+      polygons(geometry?.paved, pavedWidth > 0, `${at}.sides.${side}.paved`)
+      for (const role of ['gutter-lip', 'gutter', 'curb', 'border', 'furnishing', 'frontage'] as const) {
+        const interval = section?.geometry?.intervals.find((interval) => interval.role === role)
+        const width = interval ? interval.end - interval.start : role === 'gutter-lip' || role === 'gutter' ? 0 : bands?.[role] ?? 0
+        polygons(geometry?.bands?.[role], width > 0, `${at}.sides.${side}.bands.${role}`)
       }
     }
   }

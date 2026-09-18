@@ -83,8 +83,8 @@ export interface JunctionApproach {
 
 /** Consumed model metadata; serialized polygons are the planning authority. */
 export interface StreetPlanningReservations {
-  version: '1.0.0' | '1.1.0'
-  model: { id: 'atlas-directed-corridors'; version: '1.0.0' | '1.1.0'; authority: 'edge-local-planning'; units: 'metres'; coordinateGrid: number }
+  version: '2.1.0'
+  model: { id: 'atlas-directed-corridors'; version: '2.1.0'; authority: 'edge-local-planning'; units: 'metres'; coordinateGrid: number }
   edges: EdgePlanningReservations[]
 }
 
@@ -97,8 +97,8 @@ export interface EdgePlanningReservations {
 export interface SidePlanningReservation {
   sidewalk: Polygon[]
   walking: Polygon[]
-  paved?: Polygon[]
-  bands?: Record<Exclude<SidewalkIntervalRole, 'walking'>, Polygon[]>
+  paved: Polygon[]
+  bands: Record<Exclude<SidewalkIntervalRole, 'walking'>, Polygon[]>
 }
 
 export interface StreetNode {

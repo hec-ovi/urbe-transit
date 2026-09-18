@@ -23,6 +23,10 @@ Proposed `build({plan, attachments, obstacles, materials, design, seed})` accept
 
 Proposed result: versioned models and material bindings, fitted endpoint/support geometry, collision and clearance bounds, and source plan/link/opening/floor IDs. This adds a Materials dependency and asset delivery agreement with Engine. Publish the build schema after the stage's open decision is resolved.
 
+## Bent corridors under the 2.1.0 fan step
+
+Connections consumes street planning reservations 2.1.0. Its fans are inscribed 15 degree chords, so at each chord midpoint a band measures `cos(7.5 degrees)` (0.9914) of its authored width: a 2 m walking band publishes 1.983 m there. A full-width walking strip cannot fit a bent street edge, and `generate` would report `E_ATLAS_INVALID: walking strip leaves its planning reservation`. Straight corridors are exact, and every edge in the current tiny sample is straight, so nothing exercises this today. Decide whether Atlas circumscribes its bend fans, publishes the achievable band width, or keeps cities on straight edges.
+
 ## Boundary proposals
 
 - Move link selection, aperture/floor placement, lane/walk topology, turns, signals and transit/air planning to Atlas through an orchestrator migration. Preserve `generate`, `links`, `apertures`, `linkRefs`, `networks` and `layers` until Exterior, Interior, Engine, Simulation and Quests can consume the agreed replacement.

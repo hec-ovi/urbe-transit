@@ -1,5 +1,7 @@
 # Changelog
 
+0.10.4: street planning reservations 2.1.0, the square-capped corridor model published with Atlas blueprint 0.26.0.
+
 0.10.3: one release version across package, library constant and published documents, with the test suite on the contract surface.
 
 0.10.2: explicit avenue median reservations preserve authored lane widths and routing offsets.

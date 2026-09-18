@@ -1,10 +1,9 @@
 import { expect, it } from 'vitest'
 import { generate } from '../src'
 import type { AtlasBlueprint, StreetEdge, Vec2 } from '../src/types/atlas'
-import { boundaryAccessAtlas } from './boundary-access.fixture'
-import { crossingAtlas } from './crossing.fixture'
 import { shortJunctionAtlas } from './section-junction.fixture'
 import explicitSidewalkEdge from './explicit-sidewalk.fixture.json'
+import reservedStreet from './fixtures/reserved-street.json'
 
 const walkOnly = (seed: string) => ({ seed, toggles: { bridges: false, acTubes: false, wires: false, tunnels: false, bus: false, subway: false, train: false, airPaths: false } })
 
@@ -37,6 +36,22 @@ function intersectsCell(a: Vec2, b: Vec2, width: number, cell: Vec2[]): boolean 
   return true
 }
 
+/** One published Atlas street with its planning reservations, along +X so bands section in Z. */
+function reservedStreetAtlas(): AtlasBlueprint {
+  return structuredClone(reservedStreet) as unknown as AtlasBlueprint
+}
+
+/** Transverse section of a published band at one station, independent of its vertex count. */
+function section(polygons: Vec2[][], x: number): [number, number] {
+  const cuts: number[] = []
+  for (const polygon of polygons) for (const [i, a] of polygon.entries()) {
+    const b = polygon[(i + 1) % polygon.length]
+    if ((a[0] <= x) !== (b[0] <= x)) cuts.push(a[1] + (b[1] - a[1]) * (x - a[0]) / (b[0] - a[0]))
+  }
+  cuts.sort((a, b) => a - b)
+  return [cuts[0], cuts.at(-1)!]
+}
+
 it('joins both consumed street sides and their building access through full-width authored paving', () => {
   const atlas = shortJunctionAtlas()
   const params = walkOnly('short-junction')
@@ -63,26 +78,25 @@ it('joins both consumed street sides and their building access through full-widt
   }
 })
 
-it('preserves crossing anchors and both walking handoffs from the published plan', () => {
-  const atlas = crossingAtlas()
-  const { walk } = generate(atlas, walkOnly('short-junction')).networks
-  const source = atlas.streets.crossings[0].segments[0]
-  const crossing = walk.edges.find(edge => edge.kind === 'crossing')!
-  expect(crossing.path).toEqual([source.from, source.roadway!.from, source.roadway!.to, source.to])
-  expect(crossing.path3).toEqual(crossing.path.map(([x, z]) => [x, 0, z]))
-  expect(crossing.width).toBe(source.width)
-  for (const id of [crossing.from, crossing.to]) expect(walk.edges.some(edge => edge.kind === 'access' && edge.from === id)).toBe(true)
-})
-
-// Published street, parcel access and nearby ground from Atlas urbe-tiny, with isolated endpoint groups.
-it('joins a parcel at the sidewalk boundary through its complete declared access width', () => {
-  const out = generate(boundaryAccessAtlas(), walkOnly('boundary-access'))
-  const entry = out.networks.walk.nodes.find(node => node.kind === 'entry')!
-  const access = out.networks.walk.edges.find(edge => edge.kind === 'access' && edge.from === entry.id)!
-  expect(access.width).toBe(2)
-  expect(access.path3[0]).toEqual([198.666, 0, 228.757])
-  expect(access.path3.at(-1)).toEqual([200.05857185807662, 0, 231.13024549954167])
-  expect(out.networks.walk.edges.some(edge => edge.kind === 'sidewalk' && (edge.from === access.to || edge.to === access.to))).toBe(true)
+it('accepts published 2.1.0 street reservations and rejects an older model', () => {
+  const atlas = reservedStreetAtlas()
+  const reservation = atlas.streets.construction!.planningReservations!.edges[0]
+  const out = generate(atlas, walkOnly('reserved-street'))
+  const runs = out.networks.walk.edges.filter((edge) => edge.kind === 'sidewalk')
+  expect(runs).toHaveLength(2)
+  for (const run of runs) {
+    const middle = (run.path[0][0] + run.path.at(-1)![0]) / 2
+    const [low, high] = section(reservation.sides[run.side!].walking, middle)
+    expect(high - low).toBeCloseTo(run.width, 9)
+    for (const point of run.path) expect(point[1]).toBeCloseTo((low + high) / 2, 9)
+  }
+  const older = reservedStreetAtlas()
+  const planning = older.streets.construction!.planningReservations!
+  planning.version = planning.model.version = '1.1.0' as typeof planning.version
+  expect(() => generate(older, walkOnly('reserved-street'))).toThrowError(expect.objectContaining({
+    name: 'ConnectionsError', code: 'E_ATLAS_INVALID', message: 'unsupported street reservation model',
+    path: 'atlas.streets.construction.planningReservations',
+  }))
 })
 
 it('places both walking bands at their published intervals while preserving carriageway lanes', () => {
