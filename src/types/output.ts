@@ -2,6 +2,8 @@
 import type { V2, V3 } from '../core/vec'
 
 export type LinkKind = 'bridge' | 'ac-tube' | 'wire' | 'tunnel'
+/** Where a link's attachment heights came from. */
+export type HeightSource = 'roof' | 'envelope'
 export type ApertureKind = 'bridge' | 'ac-tube' | 'wire-anchor' | 'tunnel'
 
 export interface Aperture {
@@ -37,6 +39,8 @@ export interface Link {
   crossSection: { shape: 'rect' | 'circle'; width: number; height: number }
   walkable: { over: boolean; inside: boolean }
   length: number
+  /** `roof` when both ends used supplied standing roofs, `envelope` when either fell back. */
+  heightSource: HeightSource
 }
 
 export interface LinkRef {

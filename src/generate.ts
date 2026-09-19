@@ -1,4 +1,5 @@
 import { Rng } from './core/rng'
+import { ConnectionsError } from './core/errors'
 import { validateAtlas } from './atlas/validate'
 import { planLinks } from './links/plan'
 import { buildSignals } from './networks/signals'
@@ -29,6 +30,10 @@ const LAYER_NAMES: Record<LayerId, string> = {
 export function generate(atlas: AtlasBlueprint, params: ConnectionsParams): ConnectionsOutput {
   const resolved = resolveParams(params)
   validateAtlas(atlas)
+  const parcelIds = new Set(atlas.parcels.map((p) => p.id))
+  for (const id of Object.keys(resolved.buildings)) {
+    if (!parcelIds.has(id)) throw new ConnectionsError('E_PARAMS_INVALID', 'no such parcel in the atlas', `params.buildings.${id}`)
+  }
   const rng = new Rng(`${resolved.seed}::${atlas.meta.seed}`)
 
   const { links, apertures, refs } = planLinks(atlas, resolved, rng)

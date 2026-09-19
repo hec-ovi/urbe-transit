@@ -7,6 +7,16 @@ export interface ConnectionsParams {
   toggles?: Partial<Toggles>
   links?: Partial<Record<LinkKindKey, Partial<LinkLimits>>>
   timetable?: { dayStart?: number; dayEnd?: number }
+  /** Standing buildings by parcel id; a parcel left out keeps the Atlas envelope height. */
+  buildings?: Record<string, BuildingStand>
+}
+
+/** One parcel as the caller's base pass built it. */
+export interface BuildingStand {
+  /** Roof elevation of the building that stands there, meters above the ground plane. */
+  roof: number
+  /** False on a lot that holds no building: it takes no links and obstructs nothing. */
+  stands: boolean
 }
 
 export interface Toggles {
@@ -39,6 +49,7 @@ export interface ResolvedParams {
   toggles: Toggles
   links: Record<LinkKindKey, LinkLimits>
   timetable: { dayStart: number; dayEnd: number }
+  buildings: Record<string, BuildingStand>
 }
 
 const LINK_DEFAULTS: Record<LinkKindKey, LinkLimits> = {
@@ -92,5 +103,27 @@ export function resolveParams(params: ConnectionsParams): ResolvedParams {
   if (typeof timetable.dayStart !== 'number' || typeof timetable.dayEnd !== 'number' || timetable.dayStart >= timetable.dayEnd) {
     throw new ConnectionsError('E_PARAMS_INVALID', 'dayStart must precede dayEnd', 'params.timetable')
   }
-  return { seed: params.seed, toggles, links, timetable }
+  return { seed: params.seed, toggles, links, timetable, buildings: resolveBuildings(params.buildings) }
+}
+
+/** Standing roofs, checked entry by entry; the parcel ids themselves are checked against the atlas. */
+function resolveBuildings(input: ConnectionsParams['buildings']): Record<string, BuildingStand> {
+  if (input === undefined) return {}
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    throw new ConnectionsError('E_PARAMS_INVALID', 'buildings must be an object keyed by parcel id', 'params.buildings')
+  }
+  const out: Record<string, BuildingStand> = {}
+  for (const [id, stand] of Object.entries(input)) {
+    if (typeof stand !== 'object' || stand === null) {
+      throw new ConnectionsError('E_PARAMS_INVALID', 'must be an object', `params.buildings.${id}`)
+    }
+    if (typeof stand.roof !== 'number' || !Number.isFinite(stand.roof)) {
+      throw new ConnectionsError('E_PARAMS_INVALID', 'roof must be a finite number', `params.buildings.${id}.roof`)
+    }
+    if (typeof stand.stands !== 'boolean') {
+      throw new ConnectionsError('E_PARAMS_INVALID', 'stands must be a boolean', `params.buildings.${id}.stands`)
+    }
+    out[id] = { roof: stand.roof, stands: stand.stands }
+  }
+  return out
 }

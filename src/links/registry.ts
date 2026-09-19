@@ -1,4 +1,4 @@
-import type { Aperture, Link, LinkKind, LinkRef } from '../types/output'
+import type { Aperture, HeightSource, Link, LinkKind, LinkRef } from '../types/output'
 import { CROSS_SECTIONS, WALKABLE, type LinkGeometry } from './geometry'
 import type { BuildingIndex } from './buildings'
 import { stackFits, type StackBase } from './stack'
@@ -56,6 +56,7 @@ export class LinkRegistry {
       crossSection: CROSS_SECTIONS[kind],
       walkable: WALKABLE[kind],
       length: geo.length,
+      heightSource: this.heightSource(aId, bId),
     })
     this.refs.push({ linkId: id, kind, buildingA: aId, buildingB: bId })
     for (const bid of [aId, bId]) this.counts.set(`${kind}:${bid}`, this.count(kind, bid) + 1)
@@ -67,6 +68,12 @@ export class LinkRegistry {
       const key = `${ap.buildingId}:${ap.face}`
       this.faceSpans.set(key, [...(this.faceSpans.get(key) ?? []), [ap.u - ap.width / 2, ap.u + ap.width / 2]])
     }
+  }
+
+  /** One source per link: both ends must stand on supplied roofs for the link to read as roof-based. */
+  private heightSource(aId: string, bId: string): HeightSource {
+    const both = this.buildings.heightSource(aId) === 'roof' && this.buildings.heightSource(bId) === 'roof'
+    return both ? 'roof' : 'envelope'
   }
 
   result(): { links: Link[]; apertures: Aperture[]; refs: LinkRef[] } {

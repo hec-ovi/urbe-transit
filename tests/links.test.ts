@@ -187,3 +187,28 @@ it('keeps the complete swept section of every link clear of a station shaft', ()
     expect(segmentPolygonDistance(a, b, shaft.footprint), `${link.id} ${link.kind} enters the shaft`).toBeGreaterThan(link.crossSection.width / 2)
   }
 })
+
+it('hangs every end under the supplied standing roofs and leaves a lot without a building empty', () => {
+  // Real roofs: p0 stands far below its envelope, and p5's lot holds no building at all.
+  const roofs = Object.fromEntries(atlas.volumetric.buildings.map(b => [b.parcelId, { roof: b.height, stands: true }]))
+  roofs.p0 = { roof: 40, stands: true }
+  roofs.p5 = { roof: 0, stands: false }
+  const result = generate(atlas, { seed: 'omega', buildings: roofs })
+
+  const headRoom = (kind: string) => (kind === 'wire' ? 1 : 2)
+  const ends = result.links.flatMap(l => [{ kind: l.kind, end: l.a }, { kind: l.kind, end: l.b }])
+  expect(ends.length).toBeGreaterThan(0)
+  for (const { kind, end } of ends) {
+    if (kind === 'tunnel') continue
+    const ap = result.apertures.find(a => a.id === end.apertureId)!
+    expect(ap.base + ap.height, `${end.apertureId} on ${end.buildingId}`).toBeLessThanOrEqual(roofs[end.buildingId].roof - headRoom(kind))
+  }
+  for (const link of result.links) expect(link.heightSource).toBe('roof')
+
+  // The cap bites: without roofs the same seed hangs an end above where p0 really stops.
+  expect(out.apertures.some(ap => ap.buildingId === 'p0' && ap.base + ap.height > 40)).toBe(true)
+  expect(result.apertures.filter(ap => ap.buildingId === 'p0').length).toBeGreaterThan(0)
+
+  expect(result.apertures.filter(ap => ap.buildingId === 'p5')).toEqual([])
+  expect(result.linkRefs.filter(ref => ref.buildingA === 'p5' || ref.buildingB === 'p5')).toEqual([])
+})

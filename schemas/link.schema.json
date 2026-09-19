@@ -4,7 +4,7 @@
   "title": "Link",
   "description": "One inter-building connection. Units meters, ground plane XZ, +Y up; points are [x,y,z]. Geometry is a centerline polyline with a constant cross-section; both ends terminate exactly on the target face planes (the apertures carry the exact cut polygons).",
   "type": "object",
-  "required": ["id", "kind", "a", "b", "path", "crossSection", "walkable", "length"],
+  "required": ["id", "kind", "a", "b", "path", "crossSection", "walkable", "length", "heightSource"],
   "properties": {
     "id": { "type": "string" },
     "kind": { "enum": ["bridge", "ac-tube", "wire", "tunnel"] },
@@ -38,7 +38,8 @@
         "inside": { "type": "boolean", "description": "player and NPCs can walk through" }
       }
     },
-    "length": { "type": "number", "description": "meters along the centerline" }
+    "length": { "type": "number", "description": "meters along the centerline" },
+    "heightSource": { "enum": ["roof", "envelope"], "description": "roof when both ends attached under supplied standing roofs, envelope when either end fell back to the Atlas height" }
   },
   "$defs": {
     "endpoint": {

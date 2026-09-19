@@ -37,6 +37,8 @@ const TIER_W: Record<FacingKind, Record<WealthTier, number>> = {
 const TUNNEL_TYPES = new Set(['corpo', 'military', 'police', 'hospital', 'mall'])
 
 const BASE_GRID = DEFAULT_FLOOR_HEIGHT
+/** Clear band kept between the top of a link cut and the roof it attaches under. */
+const ROOF_HEAD_ROOM = 2
 const U_FRACTIONS = [0.5, 0.32, 0.68]
 
 /** Face stations of one candidate: where on each face the link would land. */
@@ -101,6 +103,7 @@ export class LinkPlanner {
   }
 
   private eligible(kind: FacingKind, p: Parcel): boolean {
+    if (!this.buildings.stands(p.id)) return false
     const h = this.buildings.height(p.id)
     switch (kind) {
       case 'bridge':
@@ -148,6 +151,7 @@ export class LinkPlanner {
         if (!geo) continue
         // The lower aperture base is the link's underside: the miter cut reaches its lowest there.
         if (Math.min(geo.apertureA.base, geo.apertureB.base) < floor - 1e-9) continue
+        if (kind !== 'tunnel' && !(this.underRoof(c.a, geo.apertureA) && this.underRoof(c.b, geo.apertureB))) continue
         if (!this.registry.fits(geo.apertureA) || !this.registry.fits(geo.apertureB)) continue
         const solid = linkSolid(geo.path, cross.width, cross.height)
         if (this.stations.hits(solid.a, solid.b, solid.bottom, solid.top, solid.halfWidth)) continue
@@ -157,6 +161,11 @@ export class LinkPlanner {
       }
     }
     return false
+  }
+
+  /** True when the whole cut, miter stretch included, stays a head room under the building's roof. */
+  private underRoof(id: string, aperture: { base: number; height: number }): boolean {
+    return aperture.base + aperture.height <= this.buildings.height(id) - ROOF_HEAD_ROOM + 1e-9
   }
 
   /** Lowest underside the streets under this pair allow, over every station the pair can use. */
@@ -176,7 +185,7 @@ export class LinkPlanner {
     const limits = this.params.links[key]
     if (kind === 'tunnel') return [[limits.minBase, limits.minBase]]
     const cross = CROSS_SECTIONS[kind]
-    const top = (id: string) => this.buildings.height(id) - cross.height - 2
+    const top = (id: string) => this.buildings.height(id) - cross.height - ROOF_HEAD_ROOM
     const ceiling = Math.min(top(c.a), top(c.b))
     const grid: number[] = []
     for (let v = Math.ceil(Math.max(limits.minBase, floor) / BASE_GRID) * BASE_GRID; v <= ceiling; v += BASE_GRID) grid.push(v)

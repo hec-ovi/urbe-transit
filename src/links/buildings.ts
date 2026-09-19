@@ -2,6 +2,8 @@ import { dist2, type V2, type V3 } from '../core/vec'
 import { segmentPointDistance, segmentPolygonDistance } from '../core/polygon'
 import { BuildingFaces } from '../atlas/faces'
 import type { AtlasBlueprint, Parcel } from '../types/atlas'
+import type { BuildingStand } from '../types/params'
+import type { HeightSource } from '../types/output'
 import { SpatialIndex } from '../core/spatial-index'
 
 /** Bounding circle of a footprint, for cheap pair and obstruction prefilters. */
@@ -10,16 +12,22 @@ export interface Bounds {
   r: number
 }
 
-/** Faces, height and bounding circle per building, plus the shared obstruction test. */
+/**
+ * Faces, height and bounding circle per building, plus the shared obstruction test.
+ * A supplied standing roof replaces the Atlas envelope height; a lot with no building
+ * leaves the index, so it neither takes a link nor obstructs one.
+ */
 export class BuildingIndex {
   private readonly parcelById = new Map<string, Parcel>()
   private readonly facesById = new Map<string, BuildingFaces>()
   private readonly heightById = new Map<string, number>()
   private readonly boundsById = new Map<string, Bounds>()
   private readonly orderById = new Map<string, number>()
+  private readonly roofed = new Set<string>()
+  private readonly empty = new Set<string>()
   private readonly spatial: SpatialIndex<Parcel>
 
-  constructor(atlas: AtlasBlueprint) {
+  constructor(atlas: AtlasBlueprint, stands: Readonly<Record<string, BuildingStand>> = {}) {
     for (const p of atlas.parcels) {
       this.orderById.set(p.id, this.orderById.size)
       this.parcelById.set(p.id, p)
@@ -31,6 +39,11 @@ export class BuildingIndex {
       this.boundsById.set(p.id, { c, r: Math.max(...p.footprint.map((v) => dist2(c, v))) })
     }
     for (const b of atlas.volumetric.buildings) this.heightById.set(b.parcelId, b.height)
+    for (const [id, stand] of Object.entries(stands)) {
+      this.heightById.set(id, stand.roof)
+      this.roofed.add(id)
+      if (!stand.stands) this.empty.add(id)
+    }
     this.spatial = new SpatialIndex(atlas.parcels, p => {
       const { c, r } = this.bounds(p.id)
       return { minX: c[0] - r, minZ: c[1] - r, maxX: c[0] + r, maxZ: c[1] + r }
@@ -53,7 +66,17 @@ export class BuildingIndex {
     return this.boundsById.get(id)!
   }
 
-  /** Conservative neighbors in original parcel order; exact pair checks remain caller-owned. */
+  /** True when a building stands on this parcel. */
+  stands(id: string): boolean {
+    return !this.empty.has(id)
+  }
+
+  /** Where this parcel's height comes from: a supplied standing roof, or the Atlas envelope. */
+  heightSource(id: string): HeightSource {
+    return this.roofed.has(id) ? 'roof' : 'envelope'
+  }
+
+  /** Conservative standing neighbors in original parcel order; exact pair checks remain caller-owned. */
   neighbours(id: string, reach: number): Parcel[] {
     const { c, r } = this.bounds(id)
     return this.query([c], r + reach)
@@ -67,10 +90,13 @@ export class BuildingIndex {
       bounds.maxX = Math.max(bounds.maxX, x + radius)
       bounds.maxZ = Math.max(bounds.maxZ, z + radius)
     }
-    return this.spatial.query(bounds).sort((a, b) => this.orderById.get(a.id)! - this.orderById.get(b.id)!)
+    return this.spatial
+      .query(bounds)
+      .filter((p) => this.stands(p.id))
+      .sort((a, b) => this.orderById.get(a.id)! - this.orderById.get(b.id)!)
   }
 
-  /** Buildings whose bounding circle comes within `reach` of the polyline. */
+  /** Standing buildings whose bounding circle comes within `reach` of the polyline. */
   near(path: V2[], reach: number): string[] {
     const out: string[] = []
     for (const p of this.query(path, reach)) {

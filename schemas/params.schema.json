@@ -30,6 +30,18 @@
         "tunnel": { "$ref": "#/$defs/linkLimits" }
       }
     },
+    "buildings": {
+      "type": "object",
+      "description": "standing buildings by parcel id, from the caller's base pass. A link end attaches under that roof; a parcel left out keeps the Atlas envelope height.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["roof", "stands"],
+        "properties": {
+          "roof": { "type": "number", "description": "roof elevation in meters above the ground plane" },
+          "stands": { "type": "boolean", "description": "false on a lot with no building: it takes no links and obstructs none" }
+        }
+      }
+    },
     "timetable": {
       "type": "object",
       "properties": {
