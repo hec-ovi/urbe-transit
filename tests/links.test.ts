@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 import { generate } from '../src'
 import { buildFixtureAtlas } from '../fixtures/atlas.fixture'
 import type { AtlasBlueprint, Vec2 } from '../src/types/atlas'
+import type { LinkKind, LinkRef } from '../src/types/output'
 import { faceLength, facePlaneDistance, linkGround, segmentPolygonDistance } from './helpers'
 
 const atlas = buildFixtureAtlas()
@@ -25,18 +26,6 @@ it('publishes matching links, fitted cuts, walking flags and portal references',
     expect(facePlaneDistance(atlas, l.b.buildingId, l.b.face, end)).toBeLessThan(1e-6)
     expect(l.length).toBeGreaterThan(0)
   }
-
-  const diagonal = out.links.find((l) => {
-    const [a, b] = [l.path[0], l.path[l.path.length - 1]]
-    return l.kind !== 'wire' && Math.abs(a[1] - b[1]) > 0.5
-  })
-  expect(diagonal).toBeDefined()
-  const apA = out.apertures.find((a) => a.id === diagonal!.a.apertureId)!
-  for (const v of apA.cut.polygon) {
-    expect(facePlaneDistance(atlas, apA.buildingId, apA.face, v)).toBeLessThan(1e-6)
-  }
-  // The slanted cut is taller than the straight cross-section: the exact miter stretch.
-  expect(apA.height).toBeGreaterThan(diagonal!.crossSection.height)
 
   const inside = out.links.filter((l) => l.walkable.inside)
   expect(new Set(inside.map((l) => l.kind))).toEqual(new Set(['bridge', 'ac-tube', 'tunnel']))
@@ -189,10 +178,11 @@ it('keeps the complete swept section of every link clear of a station shaft', ()
 })
 
 it('hangs every end under the supplied standing roofs and leaves a lot without a building empty', () => {
-  // Real roofs: p0 stands far below its envelope, and p5's lot holds no building at all.
+  // Real roofs: p2 and p3 stand far below their envelopes, and p0's lot holds no building at all.
   const roofs = Object.fromEntries(atlas.volumetric.buildings.map(b => [b.parcelId, { roof: b.height, stands: true }]))
-  roofs.p0 = { roof: 40, stands: true }
-  roofs.p5 = { roof: 0, stands: false }
+  roofs.p2 = { roof: 20, stands: true }
+  roofs.p3 = { roof: 28, stands: true }
+  roofs.p0 = { roof: 0, stands: false }
   const result = generate(atlas, { seed: 'omega', buildings: roofs })
 
   const headRoom = (kind: string) => (kind === 'wire' ? 1 : 2)
@@ -205,10 +195,43 @@ it('hangs every end under the supplied standing roofs and leaves a lot without a
   }
   for (const link of result.links) expect(link.heightSource).toBe('roof')
 
-  // The cap bites: without roofs the same seed hangs an end above where p0 really stops.
-  expect(out.apertures.some(ap => ap.buildingId === 'p0' && ap.base + ap.height > 40)).toBe(true)
-  expect(result.apertures.filter(ap => ap.buildingId === 'p0').length).toBeGreaterThan(0)
+  // The cap bites: without roofs the same seed hangs an end above where p2 really stops.
+  expect(out.apertures.some(ap => ap.buildingId === 'p2' && ap.base + ap.height > 20)).toBe(true)
+  expect(result.apertures.filter(ap => ap.buildingId === 'p2').length).toBeGreaterThan(0)
 
-  expect(result.apertures.filter(ap => ap.buildingId === 'p5')).toEqual([])
-  expect(result.linkRefs.filter(ref => ref.buildingA === 'p5' || ref.buildingB === 'p5')).toEqual([])
+  expect(result.apertures.filter(ap => ap.buildingId === 'p0')).toEqual([])
+  expect(result.linkRefs.filter(ref => ref.buildingA === 'p0' || ref.buildingB === 'p0')).toEqual([])
+})
+
+/** Roofs for every parcel, with the facing p0/p1 pair set to the heights under test. */
+function peerRoofs(p0: number, p1: number) {
+  const roofs = Object.fromEntries(atlas.volumetric.buildings.map(b => [b.parcelId, { roof: b.height, stands: true }]))
+  return { ...roofs, p0: { roof: p0, stands: true }, p1: { roof: p1, stands: true } }
+}
+
+const joins = (kind: LinkKind, refs: readonly LinkRef[]): LinkRef[] =>
+  refs.filter(ref => ref.kind === kind && [ref.buildingA, ref.buildingB].sort().join() === 'p0,p1')
+
+it('leaves roofs more than two floors apart unlinked', () => {
+  const result = generate(atlas, { seed: 'omega', buildings: peerRoofs(20, 32) })
+  expect(joins('bridge', result.linkRefs)).toEqual([])
+  expect(joins('ac-tube', result.linkRefs)).toEqual([])
+})
+
+it('bridges peer roofs at one elevation on both buildings, clear of the ground', () => {
+  const result = generate(atlas, { seed: 'omega', buildings: peerRoofs(15, 21) })
+  const bridges = joins('bridge', result.linkRefs)
+  expect(bridges.length).toBeGreaterThan(0)
+  for (const ref of bridges) {
+    const link = result.links.find(l => l.id === ref.linkId)!
+    const [a, b] = [link.a, link.b].map(end => result.apertures.find(ap => ap.id === end.apertureId)!)
+    expect(a.base).toBeCloseTo(b.base)
+    expect(a.base).toBeGreaterThanOrEqual(9)
+    expect(link.path[0][1]).toBeCloseTo(link.path[link.path.length - 1][1])
+  }
+})
+
+it('wires a pair the peer rule refuses a bridge', () => {
+  const result = generate(atlas, { seed: 'omega', buildings: peerRoofs(20, 32) })
+  expect(joins('wire', result.linkRefs).length).toBeGreaterThan(0)
 })

@@ -1,5 +1,7 @@
 # Changelog
 
+0.11.1: bridges and ac-tubes join peer roofs, at most 9 m apart, starting at least 9 m over the ground and level on both facades; parcel footprints are cut as given, merged lots included.
+
 0.11.0: link ends attach under the standing roof the caller supplies per parcel, lots without a building take no links, and every link reports its height source.
 
 0.10.4: street planning reservations 2.1.0, the square-capped corridor model published with Atlas blueprint 0.26.0.

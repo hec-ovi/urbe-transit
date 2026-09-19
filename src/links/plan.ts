@@ -22,10 +22,10 @@ export function planLinks(
   const facing = new LinkPlanner(atlas, params, buildings, registry)
   const { bridges, acTubes, wires, tunnels } = params.toggles
 
-  if (bridges) facing.plan('bridge', 'bridge', rng.fork('links:bridge'))
-  if (acTubes) facing.plan('acTube', 'ac-tube', rng.fork('links:acTube'))
+  if (bridges) facing.plan('bridge', rng.fork('links:bridge'))
+  if (acTubes) facing.plan('ac-tube', rng.fork('links:acTube'))
   if (wires) new WirePlanner(atlas, params, buildings, registry).plan(rng.fork('links:wire'))
-  if (tunnels) facing.plan('tunnel', 'tunnel', rng.fork('links:tunnel'))
+  if (tunnels) facing.plan('tunnel', rng.fork('links:tunnel'))
 
   return registry.result()
 }

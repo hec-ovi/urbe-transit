@@ -56,7 +56,7 @@
       "properties": {
         "minLength": { "type": "number", "description": "meters; for wires, the facade-to-facade span across the street" },
         "maxLength": { "type": "number", "description": "meters; a street wider than this carries no wires" },
-        "minBase": { "type": "number", "description": "lowest vertical base (meters, +Y) a link of this kind may attach at" },
+        "minBase": { "type": "number", "description": "lowest vertical base (meters, +Y) a link of this kind may attach at; bridges and ac-tubes never start below 9 m, whatever is asked" },
         "maxBase": { "type": "number", "description": "highest vertical base; wires only, where minBase and maxBase are the anchor band (default 4 to 8)" },
         "maxPerBuilding": { "type": "integer" },
         "density": { "type": "number", "minimum": 0, "maximum": 1, "description": "fraction of candidates that get a link: facing pairs for bridges, tubes and tunnels, anchor stations along a street for wires; 0 disables like the toggle" }
